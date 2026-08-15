@@ -18,6 +18,7 @@ export async function saveWeeklyEvaluations(classId: string, week: number, entri
     if (error) return { error: "Chưa thể lưu đánh giá. Vui lòng thử lại." };
   }
   revalidatePath(`/classes/${access.classId}/weekly`);
+  revalidatePath(`/classes/${access.classId}/weeks/${parsed.data.week}`);
   revalidatePath(`/classes/${access.classId}`);
   return { success: "Đã lưu đánh giá tuần." };
 }

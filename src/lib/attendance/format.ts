@@ -16,16 +16,16 @@ export const ATTENDANCE_STATUS_OPTIONS: {
   },
   {
     value: "ABSENT",
-    label: "Vắng",
+    label: "Vắng không phép",
     emoji: "🔴",
-    shortLabel: "Vắng",
+    shortLabel: "Vắng KP",
     buttonClass: "border-red-200/70 bg-red-50/70 text-red-700 ring-1 ring-red-200/50",
   },
   {
     value: "EXCUSED",
-    label: "Có phép",
+    label: "Vắng có phép",
     emoji: "🟡",
-    shortLabel: "Có phép",
+    shortLabel: "Vắng CP",
     buttonClass: "border-amber-200/70 bg-amber-50/60 text-amber-800 ring-1 ring-amber-200/50",
   },
   {
@@ -36,6 +36,29 @@ export const ATTENDANCE_STATUS_OPTIONS: {
     buttonClass: "border-orange-200/70 bg-orange-50/60 text-orange-800 ring-1 ring-orange-200/50",
   },
 ];
+
+/** Điểm danh tuần trên trang lớp: chỉ Có mặt / Vắng. */
+export const WEEKLY_ATTENDANCE_STATUS_OPTIONS = [
+  {
+    value: "PRESENT" as const,
+    label: "Có mặt",
+  },
+  {
+    value: "ABSENT" as const,
+    label: "Vắng",
+  },
+];
+
+export type WeeklyAttendanceStatus = (typeof WEEKLY_ATTENDANCE_STATUS_OPTIONS)[number]["value"];
+
+/** Gộp các trạng thái cũ (có phép / muộn) về Vắng khi dùng UI 2 lựa chọn. */
+export function toWeeklyAttendanceStatus(status: AttendanceStatus): WeeklyAttendanceStatus {
+  return status === "PRESENT" ? "PRESENT" : "ABSENT";
+}
+
+export function weeklyAttendanceStatusLabel(status: AttendanceStatus): string {
+  return toWeeklyAttendanceStatus(status) === "PRESENT" ? "Có mặt" : "Vắng";
+}
 
 export function attendanceStatusMeta(status: AttendanceStatus) {
   return (

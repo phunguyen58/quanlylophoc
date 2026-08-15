@@ -12,32 +12,19 @@ Checklist triển khai production với **Supabase** (database + auth) và **Ver
 2. **New project** → chọn tổ chức, tên, mật khẩu database, region (gần người dùng, ví dụ Singapore).
 3. Chờ project khở tạo xong.
 
-### 2. Chạy migrations
+### 2. Chạy SQL setup (một file duy nhất)
 
-Trong **SQL Editor**, chạy lần lượt **toàn bộ nội dung** từng file (theo thứ tự tên):
+Trong **SQL Editor**, mở file repo:
 
-| File | Nội dung |
-|------|----------|
-| `202608120001_initial_schema.sql` | Bảng, enum, index, trigger |
-| `202608120002_rls_and_rpc.sql` | RLS + RPC điểm danh/phát biểu/điểm |
-| `202608120003_import_students_rpc.sql` | RPC import học sinh |
-| `202608120004_undo_participation_rpc.sql` | RPC hoàn tác phát biểu |
-| `202608120005_undo_student_points_rpc.sql` | RPC hoàn tác điểm |
-| `202608120006_profile_backfill.sql` | Bổ sung profile cho tài khoản cũ |
-| `202608120007_safe_undo_events.sql` | Hoàn tác bằng event bù trừ, giữ lịch sử |
+`supabase/complete_setup.sql`
 
-Hoặc dùng Supabase CLI (nếu đã link project):
+Copy **toàn bộ** nội dung → dán → **Run**.
 
-```bash
-supabase db push
-```
+File này gồm: reset schema ứng dụng + tạo bảng (năm học, lớp, học sinh, điểm danh tuần/ngày, đánh giá, điểm HK/cuối năm) + RLS + RPC.
 
-Để áp dụng bằng **một lần chạy trong Supabase SQL Editor**, mở `supabase/complete_setup.sql`, copy toàn bộ nội dung và bấm **Run**. File này chứa toàn bộ migrations theo đúng thứ tự và dành cho project chưa được thiết lập.
+> Cảnh báo: `complete_setup.sql` **xóa dữ liệu ứng dụng** rồi tạo lại. Chỉ dùng cho project mới hoặc khi cố ý reset. Không chạy trên dữ liệu học sinh thật.
 
-```bash
-psql "$DATABASE_URL" -f supabase/complete_setup.sql
-```
-
+Seed demo (tuỳ chọn, file riêng): `supabase/seed.demo.sql`.
 ### 3. Cấu hình Authentication
 
 1. **Authentication** → **Providers** → bật **Email**.

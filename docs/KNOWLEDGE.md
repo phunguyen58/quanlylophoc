@@ -54,8 +54,9 @@ Master prompt gốc mô tả stack NestJS + Prisma + Docker Postgres + điểm m
 | Bảo mật dữ liệu | **RLS** theo `classes.teacher_id = auth.uid()` | App-layer authz only |
 | UX ưu tiên | **Mobile-first** (điện thoại / tablet trên lớp) | Desktop-first trong master prompt |
 | Học sinh | Gắn `class_id` trực tiếp + soft delete | Entity `Enrollment` theo năm học |
-| Năm học | `classes.school_year` dạng `YYYY-YYYY` (dropdown ~30 năm quanh năm hiện tại) | Bảng `AcademicYear` riêng |
-| Điểm danh | PRESENT / ABSENT / EXCUSED / LATE | Có mặt / nghỉ phép / không phép (map gần đúng) |
+| Năm học | Bảng `school_years` + `classes.school_year_id` (+ text `school_year` tương thích). UI sort theo năm bắt đầu (mới→cũ), không theo `created_at`. Form thêm năm: picker `2026-2027`…`2040-2041`, mặc định `2026-2027`; validate `YYYY-(YYYY+1)`. | Enrollment đa năm phức tạp |
+| Điểm danh | `weekly_attendance` theo tuần 1–35 (luồng chính); `attendance` theo ngày vẫn còn | — |
+| Đánh giá tuần | `weekly_evaluations` (level text + comment; gợi ý UI không hard-code DB) | Catalog mức đánh giá theo trường |
 | Phát biểu | `participation_events` (+1 / undo -1), idempotent `client_request_id` | Không có trong master prompt gốc |
 | Điểm thi đua | `student_points` (±1/2/5…), idempotent | Khác “điểm môn học 0–10” |
 | Điểm học tập HK1/cuối năm | `semester_scores`, `annual_scores` (lý thuyết, thực hành, tổng tự tính) | Subject CRUD / công thức nâng cao |
@@ -74,14 +75,13 @@ Khi conflict giữa master prompt và code/docs trong repo: **ưu tiên code + f
 2. **Lớp:** tạo lớp (tên, năm học, khối 1–12), soft delete, ownership theo giáo viên.
 3. **Học sinh:** CRUD, soft delete, unique `student_code` trong lớp (active), form tối giản.
 4. **Import Excel:** download mẫu → upload → preview/validate → confirm → RPC import atomic.
-5. **Điểm danh theo ngày:** mặc định Có mặt, tap đổi trạng thái, lưu batch; điều hướng ngày.
-6. **Phát biểu:** tap +1, undo an toàn (event bù trừ), chống double-submit bằng `client_request_id`.
-7. **Điểm thi đua:** +1/+2/+5, −1/−2/−5 (trừ lớn cần confirm), có lý do tùy chọn, undo.
-8. **Đánh giá tuần:** 35 tuần học với mức đánh giá linh hoạt và nhận xét.
-9. **Điểm học tập:** học kỳ 1 / cuối năm, lý thuyết + thực hành, tổng tự tính trong DB.
-10. **Báo cáo lớp:** lọc hôm nay / tuần / tháng / khoảng ngày; thống kê phát biểu, điểm, vắng.
-11. **Bảo mật:** proxy + layout bảo vệ route; RLS; lỗi kỹ thuật không lộ ra UI.
-12. **Health / chất lượng:** `npm run lint`, `npm run typecheck`, `npm run build`.
+5. **Điểm danh theo tuần (luồng chính):** 35 tuần / lớp; tap đổi trạng thái; lưu batch cùng đánh giá (`save_week_board`).
+6. **Đánh giá tuần:** mức gợi ý (Tốt/Khá/…) + nhận xét tự nhập; không hard-code trong DB.
+7. **Điểm học tập:** học kỳ 1 / cuối năm — lý thuyết + thực hành; tổng generated trên DB.
+8. **Điểm danh theo ngày / phát biểu / điểm thi đua:** vẫn có (session cũ) để tương thích.
+9. **Báo cáo lớp:** lọc hôm nay / tuần / tháng / khoảng ngày.
+10. **Bảo mật:** proxy + layout; RLS; lỗi kỹ thuật không lộ ra UI.
+11. **Health:** `npm run lint`, `npm run typecheck`, `npm run build`.
 
 ### Chưa có (backlog có chủ đích)
 
@@ -137,14 +137,14 @@ src/app/                 # routes, layouts, Server Actions
 src/components/          # UI dùng chung + shadcn
 src/lib/                 # supabase clients, validation, excel, reports, dates
 src/types/               # shared TS types
-supabase/migrations/     # schema + RLS + RPC — nguồn truth DB
+supabase/complete_setup.sql  # schema + RLS + RPC — nguồn truth DB (một file)
 docs/                    # KNOWLEDGE, architecture, DEPLOYMENT
 ```
 
 Quy ước:
 
 - Domain logic validation ở `src/lib/**` + Zod; mutation ở `src/app/actions/**`.
-- Thao tác nhanh / atomic → **Postgres RPC** trong migrations (không chỉ tin client).
+- Thao tác nhanh / atomic → **Postgres RPC** trong `complete_setup.sql` (không chỉ tin client).
 - UI tiếng Việt; không jargon kỹ thuật trên màn hình giáo viên.
 
 ---
@@ -156,26 +156,36 @@ auth.users
   └── profiles (id = auth.uid)
 
 profiles
-  └── classes (teacher_id, name, school_year, grade, deleted_at)
+  ├── school_years (teacher_id, name YYYY-YYYY, deleted_at)
+  └── classes (teacher_id, school_year_id, school_year, name, grade, deleted_at)
         └── students (class_id, student_code, full_name, ..., deleted_at)
-              ├── attendance (student_id, class_id, date, status)  UNIQUE(student_id, date)
-              ├── participation_events (points ±1, client_request_id) UNIQUE(created_by, client_request_id)
-              └── student_points (points ≠ 0, reason, client_request_id) UNIQUE(created_by, client_request_id)
+              ├── weekly_attendance (student_id, class_id, week_number 1-35, status) UNIQUE(student_id, week_number)
+              ├── weekly_evaluations (student_id, class_id, week_number, level, comment) UNIQUE(student_id, week_number)
+              ├── semester_scores / annual_scores (theory, practice, total generated)
+              ├── attendance (student_id, class_id, date, status)  UNIQUE(student_id, date)  -- legacy/day session
+              ├── participation_events (points ±1, client_request_id)
+              └── student_points (points ≠ 0, reason, client_request_id)
 ```
 
 ### Ràng buộc quan trọng
 
-- Soft delete: `deleted_at` trên `classes` / `students`. Không hard-delete dữ liệu quan trọng.
+- Soft delete: `deleted_at` trên `classes` / `students` / `school_years`. Không hard-delete dữ liệu quan trọng.
 - Unique partial: tên lớp + năm học theo giáo viên (active); `student_code` theo lớp (active).
 - `students` có `UNIQUE (id, class_id)` để attendance/events FK kép không lệch lớp.
-- Attendance default UI = PRESENT; chỉ persist khi giáo viên lưu.
-- Tổng phát biểu / điểm = aggregate từ lịch sử event (không giữ counter riêng dễ lệch).
+- Tuần học: `TOTAL_WEEKS = 35` trong `src/lib/weeks.ts`; không tạo 35 cột.
+- Tổng điểm học tập = generated column `(theory + practice) / 2` trên DB.
+- Attendance default UI = PRESENT; persist khi giáo viên lưu tuần / buổi.
+- Tổng phát biểu / điểm thi đua = aggregate từ lịch sử event.
 - Idempotency: cùng `client_request_id` + `created_by` → retry an toàn.
 - Timezone báo cáo / ngày: chuẩn hoá **Asia/Ho_Chi_Minh** (`src/lib/dates.ts`).
 
 ### Năm học UI
 
-Không textbox tự do. Dropdown khoảng ~30 năm quanh năm hiện tại, format `YYYY-YYYY`, năm sau = năm trước + 1. Dynamic theo current year — không hard-code chỉ 2026.
+Năm học là cấp cao nhất trên dashboard. Tạo năm học trước (hoặc tự tạo khi tạo lớp). Dropdown năm gần hiện tại, format `YYYY-YYYY`.
+
+### Flow chính giáo viên
+
+Năm học → Lớp → chọn tuần 1–35 → điểm danh + đánh giá trên một màn hình → Lưu. Cuối kỳ: Điểm học kỳ 1 / cuối năm.
 
 ---
 
@@ -232,7 +242,7 @@ Chi tiết policy/RPC: [architecture.md](./architecture.md).
 ```bash
 npm install
 cp .env.example .env.local   # điền Supabase URL + anon key
-# Chạy migrations trong supabase/migrations/ (SQL Editor hoặc CLI) theo thứ tự tên file
+# Chạy supabase/complete_setup.sql trong SQL Editor (project mới / reset)
 npm run dev
 npm run lint
 npm run typecheck
@@ -249,7 +259,7 @@ Tạo giáo viên: Supabase Dashboard → Authentication → Users → Add user.
 2. Không over-engineer; giữ MVP đơn giản.
 3. Không claim “hoàn thành” khi chưa chạy/build/test flow liên quan.
 4. Gặp lỗi: tự tìm root cause → sửa → verify; không hỏi “bạn có muốn tôi sửa không?” trừ khi có rủi ro phá dữ liệu / quyết định product.
-5. Schema change = **migration SQL mới** trong `supabase/migrations/` (không sửa migration cũ đã apply nếu đã share).
+5. Schema change = cập nhật `supabase/complete_setup.sql` (nguồn truth). Project đã có dữ liệu thật: viết hướng dẫn SQL bổ sung an toàn, **không** bảo giáo viên chạy lại complete_setup (sẽ xóa dữ liệu).
 6. Giữ RLS/RPC đồng bộ với mọi bảng/cột mới.
 7. UI VI; không lộ lỗi kỹ thuật ra giáo viên; log chi tiết phía server/dev.
 8. Không gửi dữ liệu học sinh sang third-party AI khi chưa có consent / cơ chế bảo vệ phù hợp.
@@ -284,7 +294,7 @@ Trước khi báo xong một thay đổi lớn:
 ### Checklist khi mở session mới
 
 1. Đọc **file này** + [architecture.md](./architecture.md) + [README.md](../README.md).
-2. Xem migrations mới nhất trong `supabase/migrations/`.
+2. Xem `supabase/complete_setup.sql` (schema hiện tại).
 3. Map feature → `src/app/actions/*` + page tương ứng dưới `src/app/(app)/classes/`.
 4. Giữ stack Supabase + Server Actions trừ khi product quyết định migrate.
 5. Backlog lớn (điểm môn, comment, enrollment, parent): thiết kế sao cho **không phá** RLS ownership và soft-delete hiện tại; cân nhắc bảng `Enrollment` nếu học sinh cần chuyển lớp theo năm.

@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, ClipboardCheck, GraduationCap, UsersRound } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { getLocalDateString } from "@/lib/dates";
-import { loadClassDashboardStats } from "@/lib/reports/load-report-data";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { ClassDashboardSummary } from "./class-dashboard-summary";
+import { estimateCurrentWeek, TOTAL_WEEKS, weekLabel } from "@/lib/weeks";
+import type { AttendanceStatus } from "@/types/attendance";
+import { ClassWeeksPanel } from "./class-weeks-panel";
 
-export default async function ClassDetailPage({ params }: { params: Promise<{ classId: string }> }) {
+export default async function ClassDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ classId: string }>;
+  searchParams: Promise<{ week?: string }>;
+}) {
   const { classId } = await params;
+  const { week: weekQuery } = await searchParams;
   const supabase = await createClient();
-  const today = getLocalDateString();
 
   const { data: classItem } = await supabase
     .from("classes")
@@ -21,38 +26,37 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ cl
 
   if (!classItem) notFound();
 
-  const dashboardStats = await loadClassDashboardStats(supabase, classId, today);
+  const estimatedWeek = estimateCurrentWeek(classItem.school_year);
+  const parsedWeek = Number.parseInt(weekQuery ?? "", 10);
+  const initialWeek =
+    Number.isFinite(parsedWeek) && parsedWeek >= 1 && parsedWeek <= TOTAL_WEEKS
+      ? parsedWeek
+      : estimatedWeek;
 
-  const actions = [
-    {
-      href: `/classes/${classId}/students`,
-      icon: UsersRound,
-      label: "Học sinh",
-      description: "Thêm và quản lý danh sách",
-      available: true,
-    },
-    {
-      href: `/classes/${classId}/session`,
-      icon: CalendarDays,
-      label: "Quản lý buổi học",
-      description: "Điểm danh và ghi nhận phát biểu",
-      available: true,
-    },
-    {
-      href: `/classes/${classId}/weekly`,
-      icon: ClipboardCheck,
-      label: "Đánh giá tuần",
-      description: "35 tuần học, nhận xét nhanh từng học sinh",
-      available: true,
-    },
-    {
-      href: `/classes/${classId}/scores`,
-      icon: GraduationCap,
-      label: "Điểm học tập",
-      description: "Học kỳ 1 và cuối năm, tự tính tổng",
-      available: true,
-    },
-  ];
+  const { data: students } = await supabase
+    .from("students")
+    .select("id, full_name, student_code")
+    .eq("class_id", classId)
+    .is("deleted_at", null)
+    .order("full_name");
+
+  const studentCount = students?.length ?? 0;
+
+  const [{ data: allAttendance }, { data: allEvaluations }, weekMetasResult] = await Promise.all([
+    supabase
+      .from("weekly_attendance")
+      .select("student_id, week_number, status, note")
+      .eq("class_id", classId),
+    supabase
+      .from("weekly_evaluations")
+      .select("student_id, week_number, level, comment")
+      .eq("class_id", classId),
+    supabase
+      .from("class_weeks")
+      .select("week_number, start_date, end_date")
+      .eq("class_id", classId),
+  ]);
+  const weekMetas = weekMetasResult.error ? [] : (weekMetasResult.data ?? []);
 
   return (
     <>
@@ -61,37 +65,38 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ cl
         href="/dashboard"
       >
         <ArrowLeft className="size-4" />
-        Tất cả lớp
+        Tất cả năm học / lớp
       </Link>
+
       <header className="mb-4">
         <p className="text-xs text-muted-foreground">
-          Khối {classItem.grade} · Năm học {classItem.school_year}
+          Năm học {classItem.school_year} · Khối {classItem.grade}
         </p>
         <h1 className="mt-0.5 text-2xl font-bold">{classItem.name}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {studentCount} học sinh · Gợi ý {weekLabel(estimatedWeek)} / {TOTAL_WEEKS}
+        </p>
       </header>
 
-      <ClassDashboardSummary
+      <ClassWeeksPanel
+        attendance={(allAttendance ?? []).map((row) => ({
+          student_id: row.student_id,
+          week_number: row.week_number,
+          status: row.status as AttendanceStatus,
+          note: row.note ?? "",
+        }))}
         classId={classId}
         className={classItem.name}
-        stats={dashboardStats}
+        evaluations={allEvaluations ?? []}
+        initialWeek={initialWeek}
+        schoolYear={classItem.school_year}
+        students={students ?? []}
+        weekMetas={(weekMetas ?? []).map((row) => ({
+          week_number: row.week_number,
+          start_date: row.start_date,
+          end_date: row.end_date,
+        }))}
       />
-
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        {actions.map(({ href, icon: Icon, label, description, available }) => (
-          <Link href={href} key={label}>
-            <Card className="h-full transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md" size="sm">
-              <CardContent>
-                <Icon className="size-5 text-primary" />
-                <h2 className="mt-2 text-base font-bold">{label}</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-                <p className="mt-2 text-xs font-semibold text-primary">
-                  {available ? "Mở →" : "Sắp có →"}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
     </>
   );
 }

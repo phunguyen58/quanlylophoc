@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { attendanceStatusLabel } from "@/lib/attendance/format";
-import { sumPointEvents, formatPointsTotal } from "@/lib/points/format";
-import { loadStudentStatistics } from "@/lib/reports/load-report-data";
 import { formatDateTimeVi, formatDateVi, genderLabel } from "@/lib/students/format";
 import { createClient } from "@/lib/supabase/server";
+import { weekLabel, weekNumbers } from "@/lib/weeks";
 import type { AttendanceStatus } from "@/types/attendance";
-import { StudentPointsControls } from "../student-points-controls";
+
+function formatScore(value: number | string | null | undefined) {
+  if (value == null || value === "") return "—";
+  return String(value);
+}
 
 export default async function StudentDetailPage({
   params,
@@ -40,39 +42,42 @@ export default async function StudentDetailPage({
 
   if (!student) notFound();
 
-  const { data: attendanceHistory } = await supabase
-    .from("attendance")
-    .select("date, status, note")
-    .eq("class_id", classId)
-    .eq("student_id", studentId)
-    .order("date", { ascending: false })
-    .limit(10);
+  const [{ data: weeklyAttendance }, { data: weeklyEvaluations }, { data: semester }, { data: annual }] =
+    await Promise.all([
+      supabase
+        .from("weekly_attendance")
+        .select("week_number, status")
+        .eq("class_id", classId)
+        .eq("student_id", studentId),
+      supabase
+        .from("weekly_evaluations")
+        .select("week_number, level, comment")
+        .eq("class_id", classId)
+        .eq("student_id", studentId),
+      supabase
+        .from("semester_scores")
+        .select("theory_score, practice_score, total_score")
+        .eq("student_id", studentId)
+        .maybeSingle(),
+      supabase
+        .from("annual_scores")
+        .select("theory_score, practice_score, total_score")
+        .eq("student_id", studentId)
+        .maybeSingle(),
+    ]);
 
-  const { data: participationHistory } = await supabase
-    .from("participation_events")
-    .select("id, created_at, points, event_type")
-    .eq("class_id", classId)
-    .eq("student_id", studentId)
-    .eq("event_type", "PARTICIPATION")
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const attendanceCounts = { PRESENT: 0, EXCUSED: 0, ABSENT: 0, LATE: 0 };
+  for (const row of weeklyAttendance ?? []) {
+    const status = row.status as AttendanceStatus;
+    if (status in attendanceCounts) attendanceCounts[status] += 1;
+  }
 
-  const { data: allPointEvents } = await supabase
-    .from("student_points")
-    .select("points")
-    .eq("class_id", classId)
-    .eq("student_id", studentId);
-
-  const { data: pointHistory } = await supabase
-    .from("student_points")
-    .select("id, points, reason, created_at")
-    .eq("class_id", classId)
-    .eq("student_id", studentId)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const pointTotal = sumPointEvents(allPointEvents ?? []);
-  const statistics = await loadStudentStatistics(supabase, classId, studentId);
+  const evaluationByWeek = new Map(
+    (weeklyEvaluations ?? []).map((row) => [row.week_number, row] as const),
+  );
+  const attendanceByWeek = new Map(
+    (weeklyAttendance ?? []).map((row) => [row.week_number, row.status as AttendanceStatus] as const),
+  );
 
   return (
     <>
@@ -87,19 +92,18 @@ export default async function StudentDetailPage({
       <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            {classItem.name} · Khối {classItem.grade}
+            {classItem.school_year} · {classItem.name} · Khối {classItem.grade}
           </p>
           <h1 className="mt-1 text-3xl font-bold">{student.full_name}</h1>
           <p className="mt-2 text-muted-foreground">Mã học sinh: {student.student_code}</p>
         </div>
-        <Button
-          className="h-11"
-          nativeButton={false}
-          render={<Link href={`/classes/${classId}/students?edit=${student.id}`} />}
+        <Link
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
+          href={`/classes/${classId}/students?edit=${student.id}`}
         >
           <Pencil className="size-4" />
           Sửa thông tin
-        </Button>
+        </Link>
       </header>
 
       <Card>
@@ -118,77 +122,61 @@ export default async function StudentDetailPage({
       </Card>
 
       <Card className="mt-4">
-        <CardContent className="grid gap-4 p-5 sm:grid-cols-3">
-          <DetailField
-            label="Tỷ lệ có mặt"
-            value={
-              statistics.attendanceRate === null
-                ? "—"
-                : `${statistics.attendanceRate}% (${statistics.attendanceDaysRecorded} ngày ghi nhận)`
-            }
-          />
-          <DetailField label="Phát biểu" value={`${statistics.participationCount} lượt`} />
-          <DetailField label="Tổng điểm" value={formatPointsTotal(statistics.pointsTotal)} />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4" id="points">
-        <CardContent className="p-5">
-          <StudentPointsControls
-            classId={classId}
-            initialHistory={pointHistory ?? []}
-            initialTotal={pointTotal}
-            studentId={student.id}
-            studentName={student.full_name}
-            variant="detail"
-          />
+        <CardContent className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+          <DetailField label="Có mặt" value={String(attendanceCounts.PRESENT)} />
+          <DetailField label="Vắng có phép" value={String(attendanceCounts.EXCUSED)} />
+          <DetailField label="Vắng" value={String(attendanceCounts.ABSENT)} />
+          <DetailField label="Đi muộn" value={String(attendanceCounts.LATE)} />
         </CardContent>
       </Card>
 
       <Card className="mt-4">
         <CardContent className="p-5">
-          <p className="text-sm font-medium text-muted-foreground">Lịch sử phát biểu gần đây</p>
-          {participationHistory?.length ? (
-            <ul className="mt-3 space-y-2">
-              {participationHistory.map((record) => (
-                <li
+          <p className="mb-3 text-sm font-medium text-muted-foreground">Đánh giá theo tuần</p>
+          <div className="space-y-2">
+            {weekNumbers().map((week) => {
+              const evaluation = evaluationByWeek.get(week);
+              const status = attendanceByWeek.get(week);
+              if (!evaluation && !status) return null;
+              return (
+                <div
                   className="flex flex-col gap-1 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-                  key={record.id}
+                  key={week}
                 >
-                  <span className="font-medium">{formatDateTimeVi(record.created_at)}</span>
-                  <span>{record.points > 0 ? "💬 Phát biểu +1" : "↩️ Hoàn tác phát biểu"}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">Chưa có dữ liệu phát biểu.</p>
-          )}
+                  <span className="font-medium">{weekLabel(week)}</span>
+                  <span>{status ? attendanceStatusLabel(status) : "—"}</span>
+                  <span className="sm:text-right">
+                    {evaluation?.level || "—"}
+                    {evaluation?.comment ? ` · ${evaluation.comment}` : ""}
+                  </span>
+                </div>
+              );
+            })}
+            {(weeklyAttendance?.length ?? 0) === 0 && (weeklyEvaluations?.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">Chưa có dữ liệu theo tuần.</p>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
-        <CardContent className="p-5">
-          <p className="text-sm font-medium text-muted-foreground">Lịch sử điểm danh gần đây</p>
-          {attendanceHistory?.length ? (
-            <ul className="mt-3 space-y-2">
-              {attendanceHistory.map((record) => (
-                <li
-                  className="flex flex-col gap-1 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-                  key={String(record.date)}
-                >
-                  <span className="font-medium">{formatDateVi(String(record.date))}</span>
-                  <span>{attendanceStatusLabel(record.status as AttendanceStatus)}</span>
-                  {record.note ? (
-                    <span className="text-muted-foreground sm:text-right">{record.note}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">Chưa có dữ liệu điểm danh.</p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            <p className="text-sm font-medium text-muted-foreground">Học kỳ 1</p>
+            <DetailField label="Lý thuyết" value={formatScore(semester?.theory_score)} />
+            <DetailField label="Thực hành" value={formatScore(semester?.practice_score)} />
+            <DetailField label="Tổng" value={formatScore(semester?.total_score)} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            <p className="text-sm font-medium text-muted-foreground">Cuối năm</p>
+            <DetailField label="Lý thuyết" value={formatScore(annual?.theory_score)} />
+            <DetailField label="Thực hành" value={formatScore(annual?.practice_score)} />
+            <DetailField label="Tổng" value={formatScore(annual?.total_score)} />
+          </CardContent>
+        </Card>
+      </div>
     </>
   );
 }

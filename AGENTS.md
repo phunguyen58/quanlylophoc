@@ -19,7 +19,7 @@ Vietnamese web app for elementary teachers to manage a class: students, attendan
 ## Stack (do not replace without explicit product decision)
 
 - Next.js 16 App Router + React 19 + TypeScript + Tailwind 4 + shadcn/ui + Zod
-- Supabase: Auth + PostgreSQL + **RLS** + SQL migrations/RPC in `supabase/migrations/`
+- Supabase: Auth + PostgreSQL + **RLS** + SQL trong `supabase/complete_setup.sql`
 - Mutations: Server Actions + Postgres RPC (not NestJS / not Prisma in this repo)
 
 ## Hard rules
@@ -38,7 +38,7 @@ Vietnamese web app for elementary teachers to manage a class: students, attendan
 ```bash
 npm install
 cp .env.example .env.local   # fill NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY
-# Apply supabase/migrations/*.sql in filename order (SQL Editor or Supabase CLI)
+# Apply supabase/complete_setup.sql in Supabase SQL Editor (new/reset project only)
 npm run dev
 npm run lint
 npm run typecheck
@@ -53,7 +53,7 @@ npm run build
 | Mutations | `src/app/actions/` |
 | Domain helpers | `src/lib/` |
 | Types | `src/types/` |
-| Schema / RLS / RPC | `supabase/migrations/` (add new migration; do not rewrite applied ones casually) |
+| Schema / RLS / RPC | `supabase/complete_setup.sql` (một file; chỉ chạy trên project mới/reset) |
 
 ## Codex tip
 

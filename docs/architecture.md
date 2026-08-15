@@ -2,7 +2,7 @@
 
 ## Repository hiện tại
 
-Next.js 16 App Router + Supabase (Postgres, Auth, RLS). Mã nguồn trong `src/`, migrations trong `supabase/migrations/`. Domain logic nằm ở `src/app/(app)/classes/`, `src/lib/`, `src/types/`.
+Next.js 16 App Router + Supabase (Postgres, Auth, RLS). Mã nguồn trong `src/`. Schema SQL nguồn truth: `supabase/complete_setup.sql`. Domain logic nằm ở `src/app/(app)/classes/`, `src/lib/`, `src/types/`.
 
 ## Cấu trúc thực tế
 
@@ -11,7 +11,7 @@ src/app/                     # routes, pages, server actions
 src/components/              # UI tái sử dụng và shadcn/ui
 src/lib/                     # Supabase, validation, aggregation
 src/types/                   # TypeScript types
-supabase/migrations/         # schema, RLS, RPC functions
+supabase/complete_setup.sql  # schema + RLS + RPC (một file)
 docs/                        # quyết định kỹ thuật, deploy
 ```
 
@@ -30,7 +30,7 @@ Model gốc phù hợp, với các thay đổi sau:
 | `client_request_id` trên event/điểm | Retry mạng dùng cùng UUID sẽ idempotent; hai lần tap chủ đích dùng UUID khác. |
 | Không thêm bảng counter | Tổng phát biểu/điểm được tính từ lịch sử, tránh counter bị lệch. Có thể thêm materialized aggregate sau khi có số liệu tải thực tế. |
 
-`attendance.class_id`, `weekly_evaluations.class_id`, `semester_scores.class_id`, và `annual_scores.class_id` vẫn được lưu để truy vấn theo lớp nhanh, đồng thời FK kép `(student_id, class_id)` ngăn dữ liệu lệch lớp. Trạng thái mặc định ở giao diện là `PRESENT`; hàng attendance chỉ được tạo/cập nhật khi giáo viên lưu buổi điểm danh. Điểm học tập lưu lý thuyết / thực hành và `total_score` là generated column để tránh lệch công thức mặc định.
+`attendance.class_id`, `weekly_attendance.class_id`, `weekly_evaluations.class_id`, `semester_scores.class_id`, và `annual_scores.class_id` vẫn được lưu để truy vấn theo lớp nhanh, đồng thời FK kép `(student_id, class_id)` ngăn dữ liệu lệch lớp. Luồng chính điểm danh/đánh giá theo **tuần** (`week_number` 1–35); điểm danh theo **ngày** vẫn giữ cho buổi học cũ. Điểm học tập lưu lý thuyết / thực hành và `total_score` là generated column. `school_years` là cấp sở hữu năm học; `classes.school_year_id` gắn lớp vào năm.
 
 ## RLS strategy
 

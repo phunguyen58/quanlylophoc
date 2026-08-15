@@ -46,7 +46,7 @@ Xem chi tiết trong [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 Tóm tắt:
 
 1. Tạo project Supabase.
-2. Chạy lần lượt các file trong `supabase/migrations/` (theo thứ tự tên file) bằng SQL Editor hoặc Supabase CLI.
+2. Chạy **một file** `supabase/complete_setup.sql` trong SQL Editor (copy hết → Run). Chỉ dùng cho project mới / reset.
 3. Bật Email auth trong Supabase Dashboard → Authentication.
 4. Tạo tài khoản giáo viên (xem bên dưới).
 
@@ -135,7 +135,8 @@ src/
   lib/              # Supabase, validation, aggregation
   types/            # TypeScript types
 supabase/
-  migrations/       # Schema, RLS, RPC functions
+  complete_setup.sql # Schema + RLS + RPC (một file duy nhất)
+  seed.demo.sql      # Seed demo (tuỳ chọn)
 docs/
   architecture.md   # Quyết định kỹ thuật
   DEPLOYMENT.md     # Hướng dẫn deploy production

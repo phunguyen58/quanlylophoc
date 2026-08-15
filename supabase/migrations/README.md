@@ -1,0 +1,7 @@
+# Schema SQL
+
+Nguồn truth: [`../complete_setup.sql`](../complete_setup.sql) — chạy cho project mới / reset.
+
+Patch bổ sung an toàn (project đã có dữ liệu):
+
+- [`../patch_class_weeks.sql`](../patch_class_weeks.sql) — bảng ngày bắt đầu/kết thúc theo tuần
