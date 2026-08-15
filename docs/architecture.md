@@ -30,12 +30,13 @@ Model gốc phù hợp, với các thay đổi sau:
 | `client_request_id` trên event/điểm | Retry mạng dùng cùng UUID sẽ idempotent; hai lần tap chủ đích dùng UUID khác. |
 | Không thêm bảng counter | Tổng phát biểu/điểm được tính từ lịch sử, tránh counter bị lệch. Có thể thêm materialized aggregate sau khi có số liệu tải thực tế. |
 
-`attendance.class_id` vẫn được lưu để truy vấn theo lớp nhanh, đồng thời FK kép `(student_id, class_id)` ngăn dữ liệu lệch lớp. Trạng thái mặc định ở giao diện là `PRESENT`; hàng attendance chỉ được tạo/cập nhật khi giáo viên lưu buổi điểm danh.
+`attendance.class_id`, `weekly_evaluations.class_id`, `semester_scores.class_id`, và `annual_scores.class_id` vẫn được lưu để truy vấn theo lớp nhanh, đồng thời FK kép `(student_id, class_id)` ngăn dữ liệu lệch lớp. Trạng thái mặc định ở giao diện là `PRESENT`; hàng attendance chỉ được tạo/cập nhật khi giáo viên lưu buổi điểm danh. Điểm học tập lưu lý thuyết / thực hành và `total_score` là generated column để tránh lệch công thức mặc định.
 
 ## RLS strategy
 
 - Mọi bảng nghiệp vụ đều bật RLS.
 - `classes.teacher_id = auth.uid()` là ranh giới sở hữu chính.
+- Bảng đánh giá tuần và điểm học tập dùng policy theo lớp cha, giống attendance.
 - `students`, `attendance`, `participation_events`, `student_points` chỉ được đọc/ghi khi lớp cha thuộc giáo viên hiện tại và chưa xoá mềm.
 - Profile chỉ cho chủ sở hữu đọc/cập nhật; trigger tạo profile khi Auth tạo user.
 - Client dùng anon key, không dùng service-role key. Policies bảo vệ cả khi người dùng sửa URL hay tự tạo request.

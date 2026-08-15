@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, UsersRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardCheck, GraduationCap, UsersRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLocalDateString } from "@/lib/dates";
 import { loadClassDashboardStats } from "@/lib/reports/load-report-data";
@@ -36,6 +36,20 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ cl
       icon: CalendarDays,
       label: "Quản lý buổi học",
       description: "Điểm danh và ghi nhận phát biểu",
+      available: true,
+    },
+    {
+      href: `/classes/${classId}/weekly`,
+      icon: ClipboardCheck,
+      label: "Đánh giá tuần",
+      description: "35 tuần học, nhận xét nhanh từng học sinh",
+      available: true,
+    },
+    {
+      href: `/classes/${classId}/scores`,
+      icon: GraduationCap,
+      label: "Điểm học tập",
+      description: "Học kỳ 1 và cuối năm, tự tính tổng",
       available: true,
     },
   ];
