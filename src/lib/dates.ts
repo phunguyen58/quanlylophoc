@@ -33,7 +33,7 @@ export function isIsoDateString(value: string): boolean {
 /** Vietnam classroom calendar date as YYYY-MM-DD, independent of server/browser timezone. */
 export function getLocalDateString(date = new Date()): string {
   const { year, month, day } = formatDatePartsInClassroomTimeZone(date);
-  return `${year}-${month}-${day}`;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 export function parseIsoDateString(dateStr: string): Date {
