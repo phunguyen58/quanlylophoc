@@ -8,7 +8,14 @@ const score = z.union([z.literal(""), z.coerce.number().min(0).max(10)]);
 const entrySchema = z.object({ student_id: z.string().uuid(), theory_score: score, practice_score: score });
 const saveSchema = z.object({ type: z.enum(["semester", "annual"]), entries: z.array(entrySchema) });
 
-export async function saveScores(classId: string, type: "semester" | "annual", entries: z.infer<typeof entrySchema>[]) {
+/** Form inputs send strings; Zod coerces to number | "". */
+export type ScoreEntryInput = {
+  student_id: string;
+  theory_score: string | number | "";
+  practice_score: string | number | "";
+};
+
+export async function saveScores(classId: string, type: "semester" | "annual", entries: ScoreEntryInput[]) {
   const access = await verifyClassAccess(classId);
   if (!access.ok) return { error: access.error };
   const parsed = saveSchema.safeParse({ type, entries });
