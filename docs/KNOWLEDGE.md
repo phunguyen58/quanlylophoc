@@ -58,10 +58,10 @@ Master prompt gốc mô tả stack NestJS + Prisma + Docker Postgres + điểm m
 | Điểm danh | PRESENT / ABSENT / EXCUSED / LATE | Có mặt / nghỉ phép / không phép (map gần đúng) |
 | Phát biểu | `participation_events` (+1 / undo -1), idempotent `client_request_id` | Không có trong master prompt gốc |
 | Điểm thi đua | `student_points` (±1/2/5…), idempotent | Khác “điểm môn học 0–10” |
-| Điểm môn / Subject / Comment | **Chưa có** | Có trong tầm nhìn dài hạn |
+| Điểm học tập HK1/cuối năm | `semester_scores`, `annual_scores` (lý thuyết, thực hành, tổng tự tính) | Subject CRUD / công thức nâng cao |
 | Phụ huynh entity | **Chưa có** (chỉ notes trên học sinh) | Parent CRUD |
 | Excel | Import học sinh (preview + validate + RPC transactional) | Export nhiều loại + template đầy đủ parent fields |
-| Demo seed one-command | Seed SQL mẫu (`supabase/seed.example.sql`); tạo user qua Supabase Dashboard | `npm run setup` + Docker + demo password cố định |
+| Demo seed one-command | Seed SQL mẫu (`supabase/seed.demo.sql`); tạo user qua Supabase Dashboard | `npm run setup` + Docker + demo password cố định |
 | Tài liệu giáo viên zero-install | README + DEPLOYMENT (cần Node + Supabase) | SETUP.md full cho máy trống |
 
 Khi conflict giữa master prompt và code/docs trong repo: **ưu tiên code + file này + architecture.md**.
@@ -77,13 +77,15 @@ Khi conflict giữa master prompt và code/docs trong repo: **ưu tiên code + f
 5. **Điểm danh theo ngày:** mặc định Có mặt, tap đổi trạng thái, lưu batch; điều hướng ngày.
 6. **Phát biểu:** tap +1, undo an toàn (event bù trừ), chống double-submit bằng `client_request_id`.
 7. **Điểm thi đua:** +1/+2/+5, −1/−2/−5 (trừ lớn cần confirm), có lý do tùy chọn, undo.
-8. **Báo cáo lớp:** lọc hôm nay / tuần / tháng / khoảng ngày; thống kê phát biểu, điểm, vắng.
-9. **Bảo mật:** proxy + layout bảo vệ route; RLS; lỗi kỹ thuật không lộ ra UI.
-10. **Health / chất lượng:** `npm run lint`, `npm run typecheck`, `npm run build`.
+8. **Đánh giá tuần:** 35 tuần học với mức đánh giá linh hoạt và nhận xét.
+9. **Điểm học tập:** học kỳ 1 / cuối năm, lý thuyết + thực hành, tổng tự tính trong DB.
+10. **Báo cáo lớp:** lọc hôm nay / tuần / tháng / khoảng ngày; thống kê phát biểu, điểm, vắng.
+11. **Bảo mật:** proxy + layout bảo vệ route; RLS; lỗi kỹ thuật không lộ ra UI.
+12. **Health / chất lượng:** `npm run lint`, `npm run typecheck`, `npm run build`.
 
 ### Chưa có (backlog có chủ đích)
 
-- Điểm môn học dạng bảng (Toán, TV… 0–10), Subject CRUD, Comment + template.
+- Subject CRUD, điểm theo từng môn (Toán, Tiếng Việt…), công thức điểm nâng cao, comment template.
 - Entity Parent / Enrollment đa năm / AcademicYear table.
 - Export Excel nhiều loại, print-friendly CSS đầy đủ, onboarding wizard.
 - Audit log UI, dark mode, i18n EN, global search toàn hệ thống.
