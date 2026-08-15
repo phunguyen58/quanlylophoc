@@ -1,0 +1,22 @@
+---
+description: QLLH project knowledge — business + tech constraints for all AI work
+alwaysApply: true
+---
+
+# QLLH agent context
+
+Before implementing or refactoring, read and follow `docs/KNOWLEDGE.md` (source of truth for product + tech). Also use `docs/architecture.md` for RLS/RPC/schema details. Repo entry for all agents (Codex included): `AGENTS.md`.
+
+## Hard constraints
+
+- Stack is **Next.js 16 App Router + Supabase (Postgres, Auth, RLS, RPC)** — not NestJS/Prisma/Docker Postgres unless product explicitly migrates.
+- End users are Vietnamese elementary teachers: **UI copy in Vietnamese**, minimal clicks, no technical jargon or raw errors.
+- Teacher A must never access Teacher B data; enforce via **RLS + server/RPC checks**, never frontend-only.
+- Prefer soft delete (`deleted_at`), DB unique constraints, and idempotent RPCs (`client_request_id`) for fast taps.
+- Do not over-engineer (no k8s/microservices/queues “for fun”).
+- Do not claim done without verifying the touched flow; update `docs/KNOWLEDGE.md` when scope or architecture changes.
+- Next.js APIs may differ from training data — check `node_modules/next/dist/docs/` and `AGENTS.md`.
+
+## “Điểm” meaning
+
+In this app, points = **thi đua / thưởng phạt** (`student_points`), not subject grades 0–10 (not implemented yet).

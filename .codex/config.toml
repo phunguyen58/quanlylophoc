@@ -1,0 +1,6 @@
+# QLLH — Codex project config
+# Optional: export CODEX_HOME="$(pwd)/.codex" before running `codex`
+# so this file is used instead of (or as) your Codex home config.
+
+# Keep room for root AGENTS.md + any nested guidance (default is 32 KiB).
+project_doc_max_bytes = 65536
