@@ -37,8 +37,6 @@ export default async function ClassReportsPage({
   if (!classItem) notFound();
 
   const report = await loadClassReport(supabase, classId, classItem.name, filter, range);
-  const isSingleDay = range.start === range.end;
-
   return (
     <>
       <Link
@@ -54,11 +52,11 @@ export default async function ClassReportsPage({
           Khối {classItem.grade} · Năm học {classItem.school_year}
         </p>
         <h1 className="mt-1 text-3xl font-bold">Báo cáo — {classItem.name}</h1>
-        <p className="mt-2 text-muted-foreground">Tổng quan hoạt động lớp học</p>
+        <p className="mt-2 text-muted-foreground">Tổng hợp sĩ số, chuyên cần và đánh giá học sinh</p>
       </header>
 
       <ReportFilters classId={classId} filter={filter} range={range} />
-      <ClassReportView classId={classId} isSingleDay={isSingleDay} report={report} />
+      <ClassReportView report={report} />
     </>
   );
 }
