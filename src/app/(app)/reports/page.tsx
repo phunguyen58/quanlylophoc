@@ -1,17 +1,9 @@
-import Link from "next/link";
+import { ReportClassSelect } from "./report-class-select";
 import { ReportYearSelect } from "./report-year-select";
-import { BarChart3, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { sortBySchoolYearNameDesc } from "@/lib/school-years";
 import { createClient } from "@/lib/supabase/server";
-
-type ClassRow = {
-  id: string;
-  name: string;
-  school_year: string;
-  school_year_id: string | null;
-  grade: number;
-};
 
 type YearMenuItem = {
   id: string;
@@ -46,17 +38,22 @@ export default async function ReportsHubPage({
             !classItem.school_year_id ||
             !yearsFromDb.some((year) => year.id === classItem.school_year_id),
         )
-        .map((classItem) => [classItem.school_year, { id: classItem.school_year, name: classItem.school_year }]),
+        .map((classItem) => [
+          classItem.school_year,
+          { id: classItem.school_year, name: classItem.school_year },
+        ]),
     ).values(),
   );
   const years = sortBySchoolYearNameDesc([...yearsFromDb, ...orphanYears]);
-  const selectedYear = years.find((year) => year.id === selectedYearParam) ?? years[0];
+  const selectedYear =
+    years.find((year) => year.id === selectedYearParam) ?? years[0];
 
   const visibleClasses = selectedYear
     ? (classes ?? []).filter(
         (classItem) =>
           classItem.school_year_id === selectedYear.id ||
-          (!classItem.school_year_id && classItem.school_year === selectedYear.name) ||
+          (!classItem.school_year_id &&
+            classItem.school_year === selectedYear.name) ||
           classItem.school_year === selectedYear.name,
       )
     : [];
@@ -67,7 +64,8 @@ export default async function ReportsHubPage({
         <p className="text-sm text-muted-foreground">Tổng hợp</p>
         <h1 className="text-2xl font-bold">Báo cáo</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Chọn năm học đã tạo, rồi chọn lớp để xem báo cáo chuyên cần / phát biểu / điểm thi đua.
+          Chọn năm học đã tạo, rồi chọn lớp để xem báo cáo chuyên cần / phát
+          biểu / điểm thi đua.
         </p>
       </header>
 
@@ -79,13 +77,19 @@ export default async function ReportsHubPage({
         </Card>
       ) : (
         <>
-          <ReportYearSelect selectedYearId={selectedYear?.id ?? ""} years={years} />
+          <ReportYearSelect
+            selectedYearId={selectedYear?.id ?? ""}
+            years={years}
+          />
 
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold">Năm học {selectedYear?.name}</h2>
+              <h2 className="text-lg font-bold">
+                Năm học {selectedYear?.name}
+              </h2>
               <p className="text-xs text-muted-foreground">
-                {visibleClasses.length} lớp có thể xem báo cáo trong năm học này.
+                {visibleClasses.length} lớp có thể xem báo cáo trong năm học
+                này.
               </p>
             </div>
           </div>
@@ -97,26 +101,15 @@ export default async function ReportsHubPage({
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleClasses.map((classItem: ClassRow) => (
-                <Link href={`/classes/${classItem.id}/reports`} key={classItem.id}>
-                  <Card className="h-full transition hover:border-primary/40 hover:shadow-md" size="sm">
-                    <CardContent>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-lg font-bold text-primary">{classItem.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {classItem.school_year} · Khối {classItem.grade}
-                          </p>
-                        </div>
-                        <BarChart3 className="size-5 text-sky-500" />
-                      </div>
-                      <p className="mt-3 text-xs font-semibold text-primary">Xem báo cáo →</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+            <Card size="sm">
+              <CardContent>
+                <ReportClassSelect classes={visibleClasses} />
+                <p className="text-xs text-muted-foreground">
+                  Các lớp trong cùng năm học được gom vào một menu để màn hình
+                  gọn hơn.
+                </p>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
@@ -125,7 +118,8 @@ export default async function ReportsHubPage({
         <CardContent className="flex items-start gap-3">
           <GraduationCap className="mt-0.5 size-5 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Báo cáo tuần (điểm danh + đánh giá) nằm trong từng lớp → chọn tuần → Xuất Excel.
+            Báo cáo tuần (điểm danh + đánh giá) nằm trong từng lớp → chọn tuần →
+            Xuất Excel.
           </p>
         </CardContent>
       </Card>
