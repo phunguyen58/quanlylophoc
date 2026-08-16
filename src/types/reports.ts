@@ -15,10 +15,11 @@ export type ClassDashboardStats = {
   pointsThisWeek: number;
 };
 
-export type RankingEntry = {
-  studentId: string;
-  studentName: string;
-  value: number;
+export type EvaluationSummary = {
+  good: number;
+  fair: number;
+  average: number;
+  weak: number;
 };
 
 export type ClassReportData = {
@@ -26,17 +27,8 @@ export type ClassReportData = {
   range: DateRange;
   filter: ReportFilter;
   activeStudents: number;
-  attendance: {
-    present: number;
-    absent: number;
-    excused: number;
-    late: number;
-  };
-  participationTotal: number;
-  pointsTotal: number;
-  topParticipation: RankingEntry[];
-  topPoints: RankingEntry[];
-  mostAbsent: RankingEntry[];
+  absentStudents: number;
+  evaluations: EvaluationSummary;
 };
 
 export type StudentStatistics = {

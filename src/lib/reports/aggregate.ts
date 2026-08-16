@@ -1,66 +1,55 @@
 import { summarizeDay } from "@/lib/attendance/summary";
-import { aggregateParticipationCounts } from "@/lib/participation/summary";
-import { aggregateStudentPointTotals } from "@/lib/points/format";
 import type { AttendanceStatus } from "@/types/attendance";
-import type { ClassReportData, DateRange, RankingEntry, StudentStatistics } from "@/types/reports";
+import type { ClassReportData, DateRange, EvaluationSummary, StudentStatistics } from "@/types/reports";
 import type { ReportFilter } from "@/types/reports";
-
-const RANKING_LIMIT = 5;
 
 type StudentRow = { id: string; full_name: string };
 
-function buildRankings(
-  students: StudentRow[],
-  participationCounts: Record<string, number>,
-  pointTotals: Record<string, number>,
-  absentDayCounts: Record<string, number>,
-): Pick<ClassReportData, "topParticipation" | "topPoints" | "mostAbsent"> {
-  const nameById = new Map(students.map((student) => [student.id, student.full_name]));
+type WeeklyEvaluationRow = {
+  student_id: string;
+  week_number: number;
+  level: string | null;
+};
 
-  function toRanking(counts: Record<string, number>, minValue = 1): RankingEntry[] {
-    return Object.entries(counts)
-      .filter(([, value]) => value >= minValue)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, RANKING_LIMIT)
-      .map(([studentId, value]) => ({
-        studentId,
-        studentName: nameById.get(studentId) ?? "Học sinh",
-        value,
-      }));
-  }
+function normalizeEvaluationLevel(level: string | null | undefined): keyof EvaluationSummary | null {
+  const normalized = (level ?? "").trim().toLocaleLowerCase("vi");
 
-  return {
-    topParticipation: toRanking(participationCounts),
-    topPoints: toRanking(
-      Object.fromEntries(Object.entries(pointTotals).filter(([, value]) => value > 0)),
-    ),
-    mostAbsent: toRanking(absentDayCounts),
-  };
+  if (!normalized) return null;
+  if (normalized === "tốt" || normalized === "rat tot" || normalized === "rất tốt") return "good";
+  if (normalized === "khá" || normalized === "kha") return "fair";
+  if (normalized === "trung bình" || normalized === "trung binh") return "average";
+  if (normalized === "yếu" || normalized === "yeu") return "weak";
+
+  return null;
 }
 
-function countAbsentDaysByStudent(
-  rows: { student_id: string; date: string; status: AttendanceStatus }[],
-): Record<string, number> {
-  const absentDays = new Map<string, Set<string>>();
+function summarizeLatestEvaluations(
+  rows: WeeklyEvaluationRow[],
+  activeStudentIds: Set<string>,
+): EvaluationSummary {
+  const latestByStudent = new Map<string, WeeklyEvaluationRow>();
 
   for (const row of rows) {
-    if (row.status !== "ABSENT") continue;
-    const dates = absentDays.get(row.student_id) ?? new Set<string>();
-    dates.add(String(row.date));
-    absentDays.set(row.student_id, dates);
+    const level = normalizeEvaluationLevel(row.level);
+    if (!level || !activeStudentIds.has(row.student_id)) continue;
+
+    const current = latestByStudent.get(row.student_id);
+    if (!current || row.week_number > current.week_number) {
+      latestByStudent.set(row.student_id, row);
+    }
   }
 
-  return Object.fromEntries(
-    [...absentDays.entries()].map(([studentId, dates]) => [studentId, dates.size]),
-  );
+  const summary: EvaluationSummary = { good: 0, fair: 0, average: 0, weak: 0 };
+  for (const row of latestByStudent.values()) {
+    const level = normalizeEvaluationLevel(row.level);
+    if (level) summary[level] += 1;
+  }
+
+  return summary;
 }
 
-function sumParticipationTotal(counts: Record<string, number>): number {
-  return Object.values(counts).reduce((total, count) => total + count, 0);
-}
-
-function sumPointTotal(totals: Record<string, number>): number {
-  return Object.values(totals).reduce((total, points) => total + points, 0);
+function countAbsentStudents(rows: { student_id: string; status: AttendanceStatus }[]): number {
+  return new Set(rows.filter((row) => row.status === "ABSENT").map((row) => row.student_id)).size;
 }
 
 export function buildClassReport(input: {
@@ -69,49 +58,18 @@ export function buildClassReport(input: {
   range: DateRange;
   students: StudentRow[];
   attendanceRows: { student_id: string; date: string; status: AttendanceStatus }[];
-  participationRows: { student_id: string; points: number }[];
-  pointRows: { student_id: string; points: number }[];
+  weeklyEvaluationRows: WeeklyEvaluationRow[];
 }): ClassReportData {
-  const activeStudents = input.students.length;
-  const isSingleDay = input.range.start === input.range.end;
-
-  let attendanceSummary = { present: 0, absent: 0, excused: 0, late: 0 };
-
-  if (isSingleDay) {
-    const daySummary = summarizeDay(
-      input.range.start,
-      input.attendanceRows.map((row) => ({ status: row.status })),
-      activeStudents,
-    );
-    attendanceSummary = {
-      present: daySummary.present,
-      absent: daySummary.absent,
-      excused: daySummary.excused,
-      late: daySummary.late,
-    };
-  } else {
-    for (const row of input.attendanceRows) {
-      if (row.status === "PRESENT") attendanceSummary.present += 1;
-      if (row.status === "ABSENT") attendanceSummary.absent += 1;
-      if (row.status === "EXCUSED") attendanceSummary.excused += 1;
-      if (row.status === "LATE") attendanceSummary.late += 1;
-    }
-  }
-
-  const participationCounts = aggregateParticipationCounts(input.participationRows);
-  const pointTotals = aggregateStudentPointTotals(input.pointRows);
-  const absentDayCounts = countAbsentDaysByStudent(input.attendanceRows);
-  const rankings = buildRankings(input.students, participationCounts, pointTotals, absentDayCounts);
-
   return {
     className: input.className,
     filter: input.filter,
     range: input.range,
-    activeStudents,
-    attendance: attendanceSummary,
-    participationTotal: sumParticipationTotal(participationCounts),
-    pointsTotal: sumPointTotal(pointTotals),
-    ...rankings,
+    activeStudents: input.students.length,
+    absentStudents: countAbsentStudents(input.attendanceRows),
+    evaluations: summarizeLatestEvaluations(
+      input.weeklyEvaluationRows,
+      new Set(input.students.map((student) => student.id)),
+    ),
   };
 }
 

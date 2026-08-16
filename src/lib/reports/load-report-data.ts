@@ -79,22 +79,11 @@ export async function loadClassReport(
     .gte("date", range.start)
     .lte("date", range.end);
 
-  const { start: isoStart, end: isoEnd } = getLocalRangeBoundsIso(range.start, range.end);
-
-  const { data: participationRows } = await supabase
-    .from("participation_events")
-    .select("student_id, points")
+  const { data: weeklyEvaluationRows } = await supabase
+    .from("weekly_evaluations")
+    .select("student_id, week_number, level")
     .eq("class_id", classId)
-    .eq("event_type", "PARTICIPATION")
-    .gte("created_at", isoStart)
-    .lte("created_at", isoEnd);
-
-  const { data: pointRows } = await supabase
-    .from("student_points")
-    .select("student_id, points")
-    .eq("class_id", classId)
-    .gte("created_at", isoStart)
-    .lte("created_at", isoEnd);
+    .order("week_number", { ascending: false });
 
   return buildClassReport({
     className,
@@ -106,8 +95,11 @@ export async function loadClassReport(
       date: String(row.date),
       status: row.status as AttendanceStatus,
     })),
-    participationRows: participationRows ?? [],
-    pointRows: pointRows ?? [],
+    weeklyEvaluationRows: (weeklyEvaluationRows ?? []).map((row) => ({
+      student_id: row.student_id,
+      week_number: Number(row.week_number),
+      level: row.level,
+    })),
   });
 }
 
