@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReportYearSelect } from "./report-year-select";
 import { BarChart3, GraduationCap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { sortBySchoolYearNameDesc } from "@/lib/school-years";
@@ -78,28 +79,7 @@ export default async function ReportsHubPage({
         </Card>
       ) : (
         <>
-          <nav aria-label="Chọn năm học báo cáo" className="mb-4 overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-2">
-              {years.map((year) => {
-                const isActive = year.id === selectedYear?.id;
-                return (
-                  <Link
-                    aria-current={isActive ? "page" : undefined}
-                    className={[
-                      "rounded-full border px-4 py-2 text-sm font-semibold transition",
-                      isActive
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-primary",
-                    ].join(" ")}
-                    href={`/reports?year=${encodeURIComponent(year.id)}`}
-                    key={year.id}
-                  >
-                    {year.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
+          <ReportYearSelect selectedYearId={selectedYear?.id ?? ""} years={years} />
 
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
