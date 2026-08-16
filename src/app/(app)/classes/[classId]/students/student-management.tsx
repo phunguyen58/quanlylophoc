@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Eye, FileSpreadsheet, Pencil, Search, Trash2, UserPlus } from "lucide-react";
+import {
+  ArrowDownAZ,
+  Eye,
+  FileSpreadsheet,
+  Hash,
+  Pencil,
+  Search,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { softDeleteStudent } from "@/app/actions/students";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +34,23 @@ type StudentManagementProps = {
 };
 
 type PanelMode = "none" | "create" | "edit" | "import";
+type SortMode = "name" | "code";
+
+function compareStudents(a: StudentListItem, b: StudentListItem, sortMode: SortMode) {
+  const primaryComparison =
+    sortMode === "name"
+      ? a.full_name.localeCompare(b.full_name, "vi", { sensitivity: "base" })
+      : a.student_code.localeCompare(b.student_code, "vi", {
+          numeric: true,
+          sensitivity: "base",
+        });
+
+  return (
+    primaryComparison ||
+    a.full_name.localeCompare(b.full_name, "vi", { sensitivity: "base" }) ||
+    a.student_code.localeCompare(b.student_code, "vi", { numeric: true, sensitivity: "base" })
+  );
+}
 
 export function StudentManagement({
   classId,
@@ -39,6 +65,7 @@ export function StudentManagement({
     : null;
 
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("name");
   const [panel, setPanel] = useState<PanelMode>(initialEditStudent ? "edit" : "none");
   const [editingStudent, setEditingStudent] = useState<
     (StudentListItem & { updated_at?: string }) | null
@@ -50,14 +77,16 @@ export function StudentManagement({
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return students;
+    const matches = query
+      ? students.filter(
+          (student) =>
+            student.full_name.toLowerCase().includes(query) ||
+            student.student_code.toLowerCase().includes(query),
+        )
+      : students;
 
-    return students.filter(
-      (student) =>
-        student.full_name.toLowerCase().includes(query) ||
-        student.student_code.toLowerCase().includes(query),
-    );
-  }, [search, students]);
+    return [...matches].sort((a, b) => compareStudents(a, b, sortMode));
+  }, [search, sortMode, students]);
 
   function openCreate() {
     setPanel("create");
@@ -100,7 +129,7 @@ export function StudentManagement({
 
   return (
     <>
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -110,6 +139,32 @@ export function StudentManagement({
             placeholder="Tìm theo tên hoặc mã học sinh…"
             value={search}
           />
+        </div>
+        <div
+          aria-label="Sắp xếp danh sách học sinh"
+          className="grid grid-cols-2 gap-1.5"
+          role="group"
+        >
+          <Button
+            aria-pressed={sortMode === "name"}
+            className="h-9"
+            onClick={() => setSortMode("name")}
+            type="button"
+            variant={sortMode === "name" ? "secondary" : "outline"}
+          >
+            <ArrowDownAZ className="size-4" />
+            Tên A–Z
+          </Button>
+          <Button
+            aria-pressed={sortMode === "code"}
+            className="h-9"
+            onClick={() => setSortMode("code")}
+            type="button"
+            variant={sortMode === "code" ? "secondary" : "outline"}
+          >
+            <Hash className="size-4" />
+            Mã học sinh
+          </Button>
         </div>
         <div className="flex flex-col gap-1.5 sm:flex-row">
           <Button className="h-9" onClick={openCreate} type="button">
