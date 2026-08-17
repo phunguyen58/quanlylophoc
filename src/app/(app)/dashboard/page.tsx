@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, UsersRound } from "lucide-react";
+import { GraduationCap, UsersRound, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateClassForm } from "./create-class-form";
 import { CreateSchoolYearForm } from "./create-school-year-form";
@@ -89,6 +89,48 @@ export default async function DashboardPage() {
         </p>
       </header>
 
+      <section className="mb-6 grid gap-4 sm:grid-cols-3">
+        <a href="#danh-sach-lop-hoc" className="block">
+          <Card className="h-full border-sky-200 bg-sky-50/50 hover:bg-sky-50 transition cursor-pointer" size="sm">
+            <CardContent className="flex items-center gap-4 py-5">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-500 text-white">
+                <UsersRound className="size-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-sky-950">Quản lý lớp học</h2>
+                <p className="text-xs text-muted-foreground font-normal text-slate-600">Quản lý học sinh, điểm danh, phát biểu và điểm thi đua</p>
+              </div>
+            </CardContent>
+          </Card>
+        </a>
+        <Link href="/quiz-management" className="block">
+          <Card className="h-full border-teal-200 bg-teal-50/50 hover:bg-teal-50 transition cursor-pointer" size="sm">
+            <CardContent className="flex items-center gap-4 py-5">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-teal-500 text-white">
+                <GraduationCap className="size-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-teal-950">Câu hỏi trắc nghiệm</h2>
+                <p className="text-xs text-muted-foreground font-normal text-slate-600">Quản lý ngân hàng câu hỏi trắc nghiệm Tin học</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/learning-materials" className="block">
+          <Card className="h-full border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 transition cursor-pointer" size="sm">
+            <CardContent className="flex items-center gap-4 py-5">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-indigo-500 text-white">
+                <Video className="size-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-indigo-950">Học liệu số (Video)</h2>
+                <p className="text-xs text-muted-foreground font-normal text-slate-600">Quản lý liên kết video bài giảng theo khối lớp 1–5</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </section>
+
       <section className="mb-5 grid gap-2 sm:grid-cols-3">
         <Card size="sm">
           <CardContent>
@@ -127,7 +169,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-8">
+        <div id="danh-sach-lop-hoc" className="space-y-8 scroll-mt-6">
           {years.map((year) => {
             const yearClasses = classesByYear[year.id] ?? classesByYear[year.name] ?? [];
             const currentWeek = estimateCurrentWeek(year.name);

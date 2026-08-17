@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
+  BookOpenCheck,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -114,13 +115,22 @@ export function AppShell({
     );
   }, [activeClassId, years]);
 
-  const [yearsSectionOpen, setYearsSectionOpen] = useState(() =>
-    readYearsSectionOpen(Boolean(yearContainingActive) || years.length > 0),
+  const [yearsSectionOpen, setYearsSectionOpen] = useState(
+    Boolean(yearContainingActive) || years.length > 0
+  );
+ 
+  const [openYearIds, setOpenYearIds] = useState<string[]>(
+    yearContainingActive ? [yearContainingActive] : []
   );
 
-  const [openYearIds, setOpenYearIds] = useState<string[]>(() =>
-    readOpenYears(yearContainingActive),
-  );
+  // Sync state with localStorage after client mount to avoid hydration mismatch
+  useEffect(() => {
+    const persistedOpen = readYearsSectionOpen(Boolean(yearContainingActive) || years.length > 0);
+    setYearsSectionOpen(persistedOpen);
+    
+    const persistedYears = readOpenYears(yearContainingActive);
+    setOpenYearIds(persistedYears);
+  }, [yearContainingActive, years.length]);
 
   // Đang ở trang lớp → luôn mở mục Năm học + đúng năm để giáo viên không bị lạc.
   const visibleYearsSectionOpen = yearsSectionOpen || Boolean(yearContainingActive);
@@ -153,6 +163,7 @@ export function AppShell({
     });
   }
 
+  // Confirm delete class
   function confirmDelete() {
     if (!deleteClass) return;
     startTransition(async () => {
@@ -162,15 +173,15 @@ export function AppShell({
 
   const mobileNav = activeClassId
     ? [
-        { href: "/dashboard", icon: Home, label: "Trang chủ" },
-        { href: `/classes/${activeClassId}`, icon: ClipboardCheck, label: "Tuần" },
-        { href: `/classes/${activeClassId}/students`, icon: UsersRound, label: "Học sinh" },
-        { href: `/classes/${activeClassId}/scores`, icon: GraduationCap, label: "Điểm" },
-      ]
+      { href: "/dashboard", icon: Home, label: "Trang chủ" },
+      { href: `/classes/${activeClassId}`, icon: ClipboardCheck, label: "Tuần" },
+      { href: `/classes/${activeClassId}/students`, icon: UsersRound, label: "Học sinh" },
+      { href: `/classes/${activeClassId}/scores`, icon: GraduationCap, label: "Điểm" },
+    ]
     : [
-        { href: "/dashboard", icon: Home, label: "Trang chủ" },
-        { href: "/reports", icon: BarChart3, label: "Báo cáo" },
-      ];
+      { href: "/dashboard", icon: Home, label: "Trang chủ" },
+      { href: "/reports", icon: BarChart3, label: "Báo cáo" },
+    ];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -310,7 +321,7 @@ export function AppShell({
                                               const isActive =
                                                 href === `/classes/${classItem.id}`
                                                   ? pathname === href ||
-                                                    pathname.startsWith(`${href}?`)
+                                                  pathname.startsWith(`${href}?`)
                                                   : pathname.startsWith(href);
                                               return (
                                                 <Link
