@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   GraduationCap,
   Home,
-  MoreVertical,
   UsersRound,
 } from "lucide-react";
 import { softDeleteClass, updateClass, type ClassMutationState } from "@/app/actions/classes";
@@ -35,30 +34,7 @@ export type SidebarYearItem = {
   classes: SidebarClassItem[];
 };
 
-const OPEN_YEARS_KEY = "qllh.sidebar.openYears";
 const YEARS_SECTION_KEY = "qllh.sidebar.yearsSectionOpen";
-
-function readOpenYears(fallback: string | null): string[] {
-  if (typeof window === "undefined") return fallback ? [fallback] : [];
-  try {
-    const raw = localStorage.getItem(OPEN_YEARS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as string[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return fallback ? [fallback] : [];
-}
-
-function persistOpenYears(ids: string[]) {
-  try {
-    localStorage.setItem(OPEN_YEARS_KEY, JSON.stringify(ids));
-  } catch {
-    // ignore
-  }
-}
 
 function readYearsSectionOpen(fallback: boolean): boolean {
   if (typeof window === "undefined") return fallback;
@@ -100,7 +76,6 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const activeClassId = pathname.match(/^\/classes\/([^/]+)/)?.[1] ?? null;
-  const [menuClassId, setMenuClassId] = useState<string | null>(null);
   const [editClass, setEditClass] = useState<SidebarClassItem | null>(null);
   const [deleteClass, setDeleteClass] = useState<SidebarClassItem | null>(null);
   const [editState, setEditState] = useState<ClassMutationState>({});
@@ -118,29 +93,8 @@ export function AppShell({
     readYearsSectionOpen(Boolean(yearContainingActive) || years.length > 0),
   );
 
-  const [openYearIds, setOpenYearIds] = useState<string[]>(() =>
-    readOpenYears(yearContainingActive),
-  );
-
-  // Đang ở trang lớp → luôn mở mục Năm học + đúng năm để giáo viên không bị lạc.
+  // Đang ở trang lớp → luôn mở mục Năm học để giáo viên không bị lạc.
   const visibleYearsSectionOpen = yearsSectionOpen || Boolean(yearContainingActive);
-
-  const visibleOpenYearIds = useMemo(() => {
-    if (!yearContainingActive) return openYearIds;
-    return openYearIds.includes(yearContainingActive)
-      ? openYearIds
-      : [...openYearIds, yearContainingActive];
-  }, [openYearIds, yearContainingActive]);
-
-  function toggleYear(yearId: string) {
-    setOpenYearIds((current) => {
-      const next = current.includes(yearId)
-        ? current.filter((id) => id !== yearId)
-        : [...current, yearId];
-      persistOpenYears(next);
-      return next;
-    });
-  }
 
   function submitEdit(formData: FormData) {
     startTransition(async () => {
@@ -221,120 +175,97 @@ export function AppShell({
                     <p className="px-2 py-1.5 text-xs text-muted-foreground">Chưa có năm học.</p>
                   ) : (
                     years.map((year) => {
-                      const isYearOpen = visibleOpenYearIds.includes(year.id);
+                      const activeClassInYear = year.classes.find(
+                        (classItem) => classItem.id === activeClassId,
+                      );
                       return (
-                        <div key={year.id}>
-                          <button
-                            aria-expanded={isYearOpen}
-                            className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm font-semibold hover:bg-muted"
-                            onClick={() => toggleYear(year.id)}
-                            type="button"
-                          >
-                            {isYearOpen ? (
-                              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                            )}
+                        <div className="space-y-1 rounded-lg px-2 py-1" key={year.id}>
+                          <div className="flex items-center gap-1.5 text-sm font-semibold">
                             <span className="truncate">{year.name}</span>
                             <span className="ml-auto text-[10px] font-medium text-muted-foreground">
                               {year.classes.length}
                             </span>
-                          </button>
+                          </div>
 
-                          {isYearOpen ? (
-                            <div className="ml-3 space-y-0.5 border-l pl-2">
-                              {year.classes.length === 0 ? (
-                                <p className="px-2 py-1.5 text-xs text-muted-foreground">Chưa có lớp</p>
-                              ) : (
-                                year.classes.map((classItem) => {
-                                  const isActiveClass = activeClassId === classItem.id;
-                                  return (
-                                    <div className="relative" key={classItem.id}>
-                                      <div className="flex items-start gap-1">
-                                        <Link
-                                          className={cn(
-                                            "min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-medium hover:bg-sky-50 hover:text-primary",
-                                            isActiveClass && "bg-sky-50 text-primary",
-                                          )}
-                                          href={`/classes/${classItem.id}`}
-                                        >
-                                          <span className="block truncate">{classItem.name}</span>
-                                          <span className="block text-[10px] font-normal text-muted-foreground">
-                                            Khối {classItem.grade}
-                                          </span>
-                                        </Link>
-                                        <button
-                                          aria-label={`Tuỳ chọn lớp ${classItem.name}`}
-                                          className="mt-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                          onClick={() =>
-                                            setMenuClassId((current) =>
-                                              current === classItem.id ? null : classItem.id,
-                                            )
-                                          }
-                                          type="button"
-                                        >
-                                          <MoreVertical className="size-4" />
-                                        </button>
-                                      </div>
+                          {year.classes.length === 0 ? (
+                            <p className="py-1 text-xs text-muted-foreground">Chưa có lớp</p>
+                          ) : (
+                            <>
+                              <select
+                                aria-label={`Chọn lớp năm học ${year.name}`}
+                                className={cn(
+                                  "h-9 w-full rounded-lg border bg-background px-2 text-sm font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20",
+                                  activeClassInYear && "border-primary text-primary",
+                                )}
+                                onChange={(event) => {
+                                  const classId = event.target.value;
+                                  if (classId) router.push(`/classes/${classId}`);
+                                }}
+                                value={activeClassInYear?.id ?? ""}
+                              >
+                                <option value="">Chọn lớp</option>
+                                {year.classes.map((classItem) => (
+                                  <option key={classItem.id} value={classItem.id}>
+                                    {classItem.name} · Khối {classItem.grade}
+                                  </option>
+                                ))}
+                              </select>
 
-                                      {menuClassId === classItem.id ? (
-                                        <div className="absolute right-0 z-30 mt-1 w-36 rounded-lg border bg-card p-1 shadow-lg">
-                                          <button
-                                            className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
-                                            onClick={() => {
-                                              setEditClass(classItem);
-                                              setEditState({});
-                                              setMenuClassId(null);
-                                            }}
-                                            type="button"
-                                          >
-                                            Sửa lớp
-                                          </button>
-                                          <button
-                                            className="block w-full rounded px-2 py-1.5 text-left text-xs text-destructive hover:bg-rose-50"
-                                            onClick={() => {
-                                              setDeleteClass(classItem);
-                                              setMenuClassId(null);
-                                            }}
-                                            type="button"
-                                          >
-                                            Xóa lớp
-                                          </button>
-                                        </div>
-                                      ) : null}
+                              {activeClassInYear ? (
+                                <div className="space-y-1">
+                                  <div className="flex gap-1">
+                                    <Button
+                                      className="h-7 flex-1 px-2 text-xs"
+                                      onClick={() => {
+                                        setEditClass(activeClassInYear);
+                                        setEditState({});
+                                      }}
+                                      type="button"
+                                      variant="outline"
+                                    >
+                                      Sửa lớp
+                                    </Button>
+                                    <Button
+                                      className="h-7 flex-1 px-2 text-xs"
+                                      onClick={() => {
+                                        setDeleteClass(activeClassInYear);
+                                      }}
+                                      type="button"
+                                      variant="outline"
+                                    >
+                                      Xóa lớp
+                                    </Button>
+                                  </div>
 
-                                      {isActiveClass ? (
-                                        <div className="mb-1 ml-1 mt-0.5 space-y-0.5 border-l pl-2">
-                                          {classQuickLinks(classItem.id).map(
-                                            ({ href, icon: Icon, label }) => {
-                                              const isActive =
-                                                href === `/classes/${classItem.id}`
-                                                  ? pathname === href ||
-                                                    pathname.startsWith(`${href}?`)
-                                                  : pathname.startsWith(href);
-                                              return (
-                                                <Link
-                                                  className={cn(
-                                                    "flex items-center gap-2 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-sky-50 hover:text-primary",
-                                                    isActive && "bg-sky-50 text-primary",
-                                                  )}
-                                                  href={href}
-                                                  key={label}
-                                                >
-                                                  <Icon className="size-3.5" />
-                                                  {label}
-                                                </Link>
-                                              );
-                                            },
-                                          )}
-                                        </div>
-                                      ) : null}
+                                  {activeClassInYear ? (
+                                    <div className="space-y-0.5 border-l pl-2">
+                                      {classQuickLinks(activeClassInYear.id).map(
+                                        ({ href, icon: Icon, label }) => {
+                                          const isActive =
+                                            href === `/classes/${activeClassInYear.id}`
+                                              ? pathname === href || pathname.startsWith(`${href}?`)
+                                              : pathname.startsWith(href);
+                                          return (
+                                            <Link
+                                              className={cn(
+                                                "flex items-center gap-2 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-sky-50 hover:text-primary",
+                                                isActive && "bg-sky-50 text-primary",
+                                              )}
+                                              href={href}
+                                              key={label}
+                                            >
+                                              <Icon className="size-3.5" />
+                                              {label}
+                                            </Link>
+                                          );
+                                        },
+                                      )}
                                     </div>
-                                  );
-                                })
-                              )}
-                            </div>
-                          ) : null}
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </>
+                          )}
                         </div>
                       );
                     })
