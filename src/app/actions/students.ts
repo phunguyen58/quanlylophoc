@@ -17,7 +17,10 @@ export type ActionState = {
   success?: string;
 };
 
-function mapStudentMutationError(error: { code?: string; message?: string }): string {
+function mapStudentMutationError(error: {
+  code?: string;
+  message?: string;
+}): string {
   if (error.code === "23505") return mapDuplicateStudentCodeError();
   return "Chưa thể lưu học sinh. Vui lòng thử lại.";
 }
@@ -39,7 +42,10 @@ export async function createStudent(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Thông tin học sinh chưa hợp lệ." };
+    return {
+      error:
+        parsed.error.issues[0]?.message ?? "Thông tin học sinh chưa hợp lệ.",
+    };
   }
 
   const { error } = await access.supabase.from("students").insert({
@@ -56,6 +62,7 @@ export async function createStudent(
   revalidatePath(`/classes/${access.classId}/students`);
   revalidatePath(`/classes/${access.classId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   return { success: "Đã thêm học sinh." };
 }
 
@@ -77,7 +84,10 @@ export async function updateStudent(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Thông tin học sinh chưa hợp lệ." };
+    return {
+      error:
+        parsed.error.issues[0]?.message ?? "Thông tin học sinh chưa hợp lệ.",
+    };
   }
 
   const expectedUpdatedAt = String(formData.get("updatedAt") ?? "").trim();
@@ -91,12 +101,15 @@ export async function updateStudent(
     .maybeSingle();
 
   if (!existing) {
-    return { error: "Không tìm thấy học sinh hoặc học sinh đã bị xóa khỏi lớp." };
+    return {
+      error: "Không tìm thấy học sinh hoặc học sinh đã bị xóa khỏi lớp.",
+    };
   }
 
   if (expectedUpdatedAt && existing.updated_at !== expectedUpdatedAt) {
     return {
-      error: "Học sinh vừa được cập nhật ở nơi khác. Vui lòng tải lại trang và thử lại.",
+      error:
+        "Học sinh vừa được cập nhật ở nơi khác. Vui lòng tải lại trang và thử lại.",
     };
   }
 
@@ -119,10 +132,14 @@ export async function updateStudent(
   revalidatePath(`/classes/${access.classId}/students/${studentId}`);
   revalidatePath(`/classes/${access.classId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   return { success: "Đã lưu thông tin học sinh." };
 }
 
-export async function softDeleteStudent(classId: string, studentId: string): Promise<ActionState> {
+export async function softDeleteStudent(
+  classId: string,
+  studentId: string,
+): Promise<ActionState> {
   const access = await verifyClassAccess(classId);
   if (!access.ok) return { error: access.error };
 
@@ -135,7 +152,9 @@ export async function softDeleteStudent(classId: string, studentId: string): Pro
     .maybeSingle();
 
   if (!existing) {
-    return { error: "Không tìm thấy học sinh hoặc học sinh đã bị xóa khỏi lớp." };
+    return {
+      error: "Không tìm thấy học sinh hoặc học sinh đã bị xóa khỏi lớp.",
+    };
   }
 
   const { error } = await access.supabase
@@ -150,6 +169,7 @@ export async function softDeleteStudent(classId: string, studentId: string): Pro
   revalidatePath(`/classes/${access.classId}/students`);
   revalidatePath(`/classes/${access.classId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   return { success: "Đã đưa học sinh ra khỏi danh sách lớp." };
 }
 
@@ -200,7 +220,9 @@ export async function importStudents(
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "Có mã học sinh trùng trong lớp. Vui lòng kiểm tra lại file." };
+      return {
+        error: "Có mã học sinh trùng trong lớp. Vui lòng kiểm tra lại file.",
+      };
     }
     return { error: "Chưa thể nhập danh sách. Vui lòng thử lại." };
   }
@@ -210,10 +232,13 @@ export async function importStudents(
   revalidatePath(`/classes/${access.classId}/students`);
   revalidatePath(`/classes/${access.classId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   return { success: `Đã thêm ${importedCount} học sinh.`, importedCount };
 }
 
-export async function getExistingStudentCodes(classId: string): Promise<string[]> {
+export async function getExistingStudentCodes(
+  classId: string,
+): Promise<string[]> {
   const access = await verifyClassAccess(classId);
   if (!access.ok) return [];
 
@@ -234,14 +259,16 @@ export async function validateImportRows(
 ): Promise<ExcelRowValidation[]> {
   const existingCodes = new Set(await getExistingStudentCodes(classId));
   return validateExcelRows(
-    rows.map(({ rowNumber, studentCode, fullName, dateOfBirth, gender, notes }) => ({
-      rowNumber,
-      studentCode,
-      fullName,
-      dateOfBirth,
-      gender,
-      notes,
-    })),
+    rows.map(
+      ({ rowNumber, studentCode, fullName, dateOfBirth, gender, notes }) => ({
+        rowNumber,
+        studentCode,
+        fullName,
+        dateOfBirth,
+        gender,
+        notes,
+      }),
+    ),
     existingCodes,
   );
 }
