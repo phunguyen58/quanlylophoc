@@ -11,7 +11,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!user) redirect("/login");
 
   const [{ data: profile }, { data: schoolYears }, { data: classes }] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, teacher_code").eq("id", user.id).maybeSingle(),
     supabase.from("school_years").select("id, name").is("deleted_at", null),
     supabase
       .from("classes")
@@ -64,6 +64,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <AppShell
       fullName={profile?.full_name || user.user_metadata.full_name || "Giáo viên"}
+      teacherCode={profile?.teacher_code}
       years={years}
     >
       {children}

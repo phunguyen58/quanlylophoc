@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { QuizQuestion, QuizSubmission } from "@/types/student-quiz";
-import { updateQuizQuestion, deleteQuizQuestion, toggleQuizQuestionActive } from "@/app/actions/student-quiz";
+import { updateQuizQuestion, deleteQuizQuestion, toggleQuizQuestionActive, deleteQuizSubmission } from "@/app/actions/student-quiz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,8 +28,10 @@ export function QuizManagementClient({ initialQuestions, initialSubmissions }: P
     tabParam === "submissions" ? "submissions" : "questions"
   );
   const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuestions);
-  const [submissions] = useState<QuizSubmission[]>(initialSubmissions);
+  const [submissions, setSubmissions] = useState<QuizSubmission[]>(initialSubmissions);
   const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Lọc theo Khối
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<number | "all">("all");
@@ -205,11 +207,44 @@ export function QuizManagementClient({ initialQuestions, initialSubmissions }: P
     });
   }
 
-  // Lọc danh sách nộp bài
-  const filteredSubmissions = submissions.filter(sub =>
-    sub.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sub.class_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Lọc danh sách nộp bài theo tìm kiếm và khoảng ngày
+  const filteredSubmissions = submissions.filter(sub => {
+    const matchesSearch = sub.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sub.class_name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (startDate) {
+      const sDate = new Date(startDate);
+      sDate.setHours(0, 0, 0, 0);
+      const compDate = new Date(sub.completed_at);
+      if (compDate < sDate) return false;
+    }
+
+    if (endDate) {
+      const eDate = new Date(endDate);
+      eDate.setHours(23, 59, 59, 999);
+      const compDate = new Date(sub.completed_at);
+      if (compDate > eDate) return false;
+    }
+
+    return true;
+  });
+
+  // Xoá kết quả làm bài của học sinh
+  function handleDeleteSubmission(id: string) {
+    if (!confirm("Bạn có chắc chắn muốn xoá kết quả làm bài này? Thao tác này không thể hoàn tác.")) return;
+    startTransition(async () => {
+      const res = await deleteQuizSubmission(id);
+      if (res.success) {
+        setSubmissions(prev => prev.filter(sub => sub.id !== id));
+        setSuccess("Xoá kết quả làm bài thành công!");
+        setError(null);
+      } else {
+        setError(res.error || "Không thể xoá kết quả làm bài.");
+      }
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -400,25 +435,63 @@ export function QuizManagementClient({ initialQuestions, initialSubmissions }: P
       {/* TAB KẾT QUẢ LÀM BÀI */}
       {activeTab === "submissions" && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-2 flex-1 max-w-md">
-              <Search className="size-4 text-muted-foreground ml-1" />
-              <Input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm theo tên học sinh, tên lớp..."
-                className="border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold text-sm shadow-none"
-              />
+          <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-1 max-w-md border rounded-xl px-2 py-1">
+                <Search className="size-4 text-muted-foreground ml-1 shrink-0" />
+                <Input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Tìm kiếm theo tên học sinh, tên lớp..."
+                  className="border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold text-sm shadow-none h-8"
+                />
+              </div>
+
+              {/* Bộ lọc Khoảng ngày */}
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
+                <div className="flex items-center gap-1">
+                  <span>Từ ngày:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="border rounded-lg px-2 py-1 font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span>Đến ngày:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="border rounded-lg px-2 py-1 font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setStartDate("");
+                      setEndDate("");
+                    }}
+                    className="text-[10px] text-rose-600 hover:text-rose-700 h-7 px-2 font-black rounded-lg"
+                  >
+                    Xoá lọc ngày
+                  </Button>
+                )}
+              </div>
+
+              <Button
+                onClick={handleExportExcel}
+                variant="outline"
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 font-bold rounded-xl gap-1.5 self-stretch lg:self-auto cursor-pointer"
+              >
+                <FileSpreadsheet className="size-4" />
+                Xuất Excel ({filteredSubmissions.length} dòng)
+              </Button>
             </div>
-            <Button
-              onClick={handleExportExcel}
-              variant="outline"
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 font-bold rounded-xl gap-1.5 self-end sm:self-auto cursor-pointer"
-            >
-              <FileSpreadsheet className="size-4" />
-              Xuất Excel
-            </Button>
           </div>
 
           <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
@@ -431,12 +504,13 @@ export function QuizManagementClient({ initialQuestions, initialSubmissions }: P
                     <th className="p-4 text-center">Số câu đúng</th>
                     <th className="p-4 text-center">Số điểm cộng</th>
                     <th className="p-4">Thời gian nộp</th>
+                    <th className="p-4 text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSubmissions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-muted-foreground font-normal">
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground font-normal">
                         Chưa có học sinh nào nộp bài.
                       </td>
                     </tr>
@@ -471,6 +545,18 @@ export function QuizManagementClient({ initialQuestions, initialSubmissions }: P
                             +{sub.score}đ
                           </td>
                           <td className="p-4 text-xs font-normal text-muted-foreground">{timeStr}</td>
+                          <td className="p-4 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSubmission(sub.id)}
+                              disabled={isPending}
+                              title="Xoá kết quả làm bài"
+                              className="size-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </td>
                         </tr>
                       );
                     })

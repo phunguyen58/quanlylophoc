@@ -68,10 +68,12 @@ function classQuickLinks(classId: string) {
 export function AppShell({
   children,
   fullName,
+  teacherCode,
   years,
 }: {
   children: React.ReactNode;
   fullName: string;
+  teacherCode?: string;
   years: SidebarYearItem[];
 }) {
   const pathname = usePathname();
@@ -295,6 +297,14 @@ export function AppShell({
           </div>
 
           <div className="mt-3 shrink-0 rounded-lg bg-sky-50 p-2.5">
+            {teacherCode && (
+              <div className="border-b border-sky-100 pb-2 mb-2 shrink-0">
+                <p className="text-[20px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Mã phòng học</p>
+                <p className="text-[20px] font-black text-primary select-all bg-white border border-sky-150 py-1 rounded-xl text-center shadow-sm tracking-widest leading-none">
+                  {teacherCode}
+                </p>
+              </div>
+            )}
             <p className="text-sm font-semibold">{fullName}</p>
             <form action={logout}>
               <Button className="mt-1 h-7 px-0 text-muted-foreground" size="sm" type="submit" variant="ghost">
@@ -342,16 +352,16 @@ export function AppShell({
 
       {isMobileYearsOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 md:hidden animate-in fade-in duration-200" onClick={() => setIsMobileYearsOpen(false)}>
-          <div 
+          <div
             className="fixed inset-y-0 right-0 w-80 bg-white p-5 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-250 z-50"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between border-b pb-3 mb-4">
                 <h3 className="font-extrabold text-slate-800 text-base">Năm học & Lớp học</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsMobileYearsOpen(false)}
                   className="font-bold text-slate-500 rounded-lg px-2 h-8"
                 >
@@ -408,7 +418,7 @@ export function AppShell({
                 )}
               </div>
             </div>
-            
+
             <div className="border-t pt-4 mt-3 flex-shrink-0">
               <p className="text-xs text-muted-foreground font-normal text-center">Đang đăng nhập: {fullName}</p>
             </div>

@@ -22,7 +22,7 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle()
+    ? await supabase.from("profiles").select("full_name, teacher_code").eq("id", user.id).maybeSingle()
     : { data: null };
 
   const { data: schoolYears, error: yearsError } = await supabase
@@ -81,12 +81,20 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <header className="mb-4">
-        <p className="text-sm text-muted-foreground">Xin chào,</p>
-        <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Chọn năm học → lớp → tuần để điểm danh và đánh giá.
-        </p>
+      <header className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground">Xin chào,</p>
+          <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Chọn năm học → lớp → tuần để điểm danh và đánh giá.
+          </p>
+        </div>
+        {profile?.teacher_code && (
+          <div className="bg-sky-55/80 bg-sky-50 border border-sky-100 rounded-2xl px-4 py-3 flex flex-col items-center justify-center shrink-0 self-start sm:self-auto shadow-sm">
+            <span className="text-[10px] uppercase font-extrabold text-sky-600 tracking-wider">Mã phòng học</span>
+            <span className="text-xl font-black text-sky-850 tracking-wider mt-0.5 select-all">{profile.teacher_code}</span>
+          </div>
+        )}
       </header>
 
       <section className="mb-6 grid gap-4 sm:grid-cols-3">

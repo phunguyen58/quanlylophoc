@@ -6,7 +6,7 @@ import { QuizQuestion, QuizSubmission, LessonVideo } from "@/types/student-quiz"
 import { revalidatePath } from "next/cache";
 
 // Tải danh sách câu hỏi trắc nghiệm (nếu lỗi hoặc bảng trống, trả về bộ 10 câu mặc định)
-export async function getQuizQuestions(grade?: number, includeInactive = false): Promise<QuizQuestion[]> {
+export async function getQuizQuestions(grade?: number, includeInactive = false, teacherId?: string): Promise<QuizQuestion[]> {
   try {
     const supabase = await createClient();
     let query = supabase
@@ -18,6 +18,20 @@ export async function getQuizQuestions(grade?: number, includeInactive = false):
     }
     if (!includeInactive) {
       query = query.eq("is_active", true);
+    }
+
+    let targetTeacherId = teacherId;
+    if (!targetTeacherId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        targetTeacherId = user.id;
+      }
+    }
+
+    if (targetTeacherId) {
+      query = query.eq("teacher_id", targetTeacherId);
+    } else {
+      query = query.is("teacher_id", null);
     }
 
     const { data, error } = await query.order("order_index", { ascending: true });
@@ -38,6 +52,7 @@ export async function getQuizQuestions(grade?: number, includeInactive = false):
       order_index: number;
       grade: number;
       is_active: boolean;
+      teacher_id?: string;
     }
 
     return (data as DbQuizQuestion[]).map((q) => ({
@@ -49,6 +64,7 @@ export async function getQuizQuestions(grade?: number, includeInactive = false):
       order_index: q.order_index,
       grade: q.grade,
       is_active: q.is_active,
+      teacher_id: q.teacher_id,
     }));
   } catch {
     return grade === undefined || grade === 4 ? DEFAULT_QUIZ_QUESTIONS : [];
@@ -60,7 +76,8 @@ export async function submitQuizResult(
   studentName: string,
   className: string,
   score: number,
-  totalQuestions: number
+  totalQuestions: number,
+  teacherId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
@@ -69,6 +86,7 @@ export async function submitQuizResult(
       class_name: className,
       score,
       total_questions: totalQuestions,
+      teacher_id: teacherId || null
     });
     if (error) throw error;
     
@@ -90,6 +108,7 @@ export async function getQuizSubmissions(): Promise<QuizSubmission[]> {
     const { data, error } = await supabase
       .from("quiz_submissions")
       .select("*")
+      .eq("teacher_id", user.id)
       .order("completed_at", { ascending: false });
 
     if (error || !data) return [];
@@ -101,6 +120,7 @@ export async function getQuizSubmissions(): Promise<QuizSubmission[]> {
       score: number;
       total_questions: number;
       completed_at: string;
+      teacher_id?: string;
     }
 
     return (data as DbQuizSubmission[]).map((s) => ({
@@ -110,6 +130,7 @@ export async function getQuizSubmissions(): Promise<QuizSubmission[]> {
       score: s.score,
       total_questions: s.total_questions,
       completed_at: s.completed_at,
+      teacher_id: s.teacher_id,
     }));
   } catch {
     return [];
@@ -142,6 +163,7 @@ export async function updateQuizQuestion(
       order_index: formData.orderIndex ?? 0,
       grade: formData.grade,
       is_active: formData.is_active !== undefined ? formData.is_active : true,
+      teacher_id: user.id,
     };
 
     let error;
@@ -216,7 +238,7 @@ export async function deleteQuizQuestion(questionId: string): Promise<{ success:
 }
 
 // Tải danh sách video học liệu số (nếu trống, trả về mặc định cho khối 4)
-export async function getLessonVideos(grade?: number): Promise<LessonVideo[]> {
+export async function getLessonVideos(grade?: number, teacherId?: string): Promise<LessonVideo[]> {
   try {
     const supabase = await createClient();
     let query = supabase
@@ -225,6 +247,20 @@ export async function getLessonVideos(grade?: number): Promise<LessonVideo[]> {
 
     if (grade !== undefined) {
       query = query.eq("grade", grade);
+    }
+
+    let targetTeacherId = teacherId;
+    if (!targetTeacherId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        targetTeacherId = user.id;
+      }
+    }
+
+    if (targetTeacherId) {
+      query = query.eq("teacher_id", targetTeacherId);
+    } else {
+      query = query.is("teacher_id", null);
     }
 
     const { data, error } = await query.order("order_index", { ascending: true });
@@ -243,6 +279,7 @@ export async function getLessonVideos(grade?: number): Promise<LessonVideo[]> {
       youtube_url: string;
       grade: number;
       order_index: number;
+      teacher_id?: string;
     }
 
     return (data as DbLessonVideo[]).map((v) => ({
@@ -252,6 +289,7 @@ export async function getLessonVideos(grade?: number): Promise<LessonVideo[]> {
       youtubeUrl: v.youtube_url,
       grade: v.grade,
       order_index: v.order_index,
+      teacher_id: v.teacher_id,
     }));
   } catch {
     return grade === undefined || grade === 4 ? STATIC_VIDEOS : [];
@@ -280,6 +318,7 @@ export async function updateLessonVideo(
       youtube_url: formData.youtubeUrl.trim(),
       grade: formData.grade,
       order_index: formData.orderIndex ?? 0,
+      teacher_id: user.id,
     };
 
     let error;
@@ -321,6 +360,62 @@ export async function deleteLessonVideo(videoId: string): Promise<{ success: boo
     return { success: true };
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : "Có lỗi xảy ra khi xoá video.";
+    return { success: false, error: errMsg };
+  }
+}
+
+// Xác thực mã code của giáo viên từ phía học sinh
+export async function verifyTeacherCode(code: string): Promise<{
+  success: boolean;
+  teacherId?: string;
+  teacherName?: string;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) return { success: false, error: "Vui lòng nhập mã code." };
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .eq("teacher_code", cleanCode)
+      .maybeSingle();
+
+    if (error || !data) {
+      return { success: false, error: "Mã code của giáo viên không chính xác." };
+    }
+
+    return {
+      success: true,
+      teacherId: data.id,
+      teacherName: data.full_name,
+    };
+  } catch (err) {
+    return { success: false, error: "Có lỗi xảy ra khi xác thực." };
+  }
+}
+
+// Xoá kết quả làm bài trắc nghiệm (yêu cầu giáo viên)
+export async function deleteQuizSubmission(submissionId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Đăng nhập đã hết hạn." };
+
+    const { error } = await supabase
+      .from("quiz_submissions")
+      .delete()
+      .eq("id", submissionId);
+
+    if (error) {
+      return { success: false, error: error.message || "Không thể xoá kết quả làm bài." };
+    }
+
+    revalidatePath("/quiz-management");
+    return { success: true };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : "Có lỗi xảy ra.";
     return { success: false, error: errMsg };
   }
 }
