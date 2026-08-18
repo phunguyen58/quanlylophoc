@@ -7,6 +7,7 @@ export interface QuizQuestion {
   order_index?: number;
   grade?: number;
   is_active?: boolean;
+  teacher_id?: string;
 }
 
 export interface QuizSubmission {
@@ -16,6 +17,7 @@ export interface QuizSubmission {
   score: number;
   total_questions: number;
   completed_at: string;
+  teacher_id?: string;
 }
 
 export interface LessonVideo {
@@ -25,4 +27,5 @@ export interface LessonVideo {
   youtubeUrl: string;
   grade?: number;
   order_index?: number;
+  teacher_id?: string;
 }

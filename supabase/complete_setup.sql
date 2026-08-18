@@ -57,6 +57,7 @@ create type public.participation_event_type as enum ('PARTICIPATION');
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null check (char_length(btrim(full_name)) between 1 and 120),
+  teacher_code text unique not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -274,10 +275,11 @@ create trigger annual_scores_set_updated_at before update on public.annual_score
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  insert into public.profiles (id, full_name)
+  insert into public.profiles (id, full_name, teacher_code)
   values (
     new.id,
-    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''), split_part(new.email, '@', 1), 'Giáo viên')
+    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''), split_part(new.email, '@', 1), 'Giáo viên'),
+    upper(substring(new.id::text from 1 for 6))
   );
   return new;
 end;
@@ -303,8 +305,8 @@ alter table public.annual_scores enable row level security;
 alter table public.participation_events enable row level security;
 alter table public.student_points enable row level security;
 
-create policy "Teachers can view their profile" on public.profiles
-  for select using (id = auth.uid());
+create policy "Allow public read profiles" on public.profiles
+  for select using (true);
 create policy "Teachers can update their profile" on public.profiles
   for update using (id = auth.uid()) with check (id = auth.uid());
 create policy "Teachers can insert their profile" on public.profiles
@@ -660,6 +662,7 @@ grant execute on function public.undo_student_points_event(uuid, uuid) to authen
 
 create table public.quiz_questions (
   id uuid primary key default gen_random_uuid(),
+  teacher_id uuid references public.profiles(id) on delete cascade,
   question text not null check (char_length(btrim(question)) > 0),
   options text[] not null check (cardinality(options) = 4),
   correct_answer integer not null check (correct_answer between 0 and 3),
@@ -673,6 +676,7 @@ create table public.quiz_questions (
 
 create table public.lesson_videos (
   id uuid primary key default gen_random_uuid(),
+  teacher_id uuid references public.profiles(id) on delete cascade,
   title text not null check (char_length(btrim(title)) > 0),
   description text not null,
   youtube_url text not null check (char_length(btrim(youtube_url)) > 0),
@@ -684,12 +688,18 @@ create table public.lesson_videos (
 
 create table public.quiz_submissions (
   id uuid primary key default gen_random_uuid(),
+  teacher_id uuid references public.profiles(id) on delete cascade,
   student_name text not null check (char_length(btrim(student_name)) > 0),
   class_name text not null check (char_length(btrim(class_name)) > 0),
   score integer not null,
   total_questions integer not null,
   completed_at timestamptz not null default now()
 );
+
+-- Indexes for performance
+create index if not exists quiz_questions_teacher_id_idx on public.quiz_questions (teacher_id);
+create index if not exists lesson_videos_teacher_id_idx on public.lesson_videos (teacher_id);
+create index if not exists quiz_submissions_teacher_id_idx on public.quiz_submissions (teacher_id);
 
 -- Enable RLS
 alter table public.quiz_questions enable row level security;
@@ -702,8 +712,8 @@ create policy "Allow public read quiz questions"
 
 create policy "Allow authenticated write quiz questions"
   on public.quiz_questions for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using (auth.uid() = teacher_id)
+  with check (auth.uid() = teacher_id);
 
 -- Policies for lesson_videos
 create policy "Allow public read lesson videos"
@@ -711,8 +721,8 @@ create policy "Allow public read lesson videos"
 
 create policy "Allow authenticated write lesson videos"
   on public.lesson_videos for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using (auth.uid() = teacher_id)
+  with check (auth.uid() = teacher_id);
 
 -- Policies for quiz_submissions
 create policy "Allow public insert quiz submissions"
@@ -721,15 +731,20 @@ create policy "Allow public insert quiz submissions"
 
 create policy "Allow authenticated read quiz submissions"
   on public.quiz_submissions for select
-  using (auth.role() = 'authenticated');
+  using (auth.uid() = teacher_id);
+
+create policy "Allow authenticated delete quiz submissions"
+  on public.quiz_submissions for delete
+  using (auth.uid() = teacher_id);
 
 -- ---------------------------------------------------------------------------
 -- 7) PROFILE BACKFILL
 -- ---------------------------------------------------------------------------
-insert into public.profiles (id, full_name)
+insert into public.profiles (id, full_name, teacher_code)
 select
   id,
-  coalesce(nullif(btrim(raw_user_meta_data ->> 'full_name'), ''), split_part(email, '@', 1), 'Giáo viên')
+  coalesce(nullif(btrim(raw_user_meta_data ->> 'full_name'), ''), split_part(email, '@', 1), 'Giáo viên'),
+  upper(substring(id::text from 1 for 6))
 from auth.users
 on conflict (id) do nothing;
 
