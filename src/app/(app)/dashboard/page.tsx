@@ -3,6 +3,7 @@ import { GraduationCap, UsersRound, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateClassForm } from "./create-class-form";
 import { CreateSchoolYearForm } from "./create-school-year-form";
+import { DeleteSchoolYearButton } from "./delete-school-year-button";
 import { estimateCurrentWeek, TOTAL_WEEKS, weekLabel } from "@/lib/weeks";
 import { currentSchoolYearName, sortBySchoolYearNameDesc } from "@/lib/school-years";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
     return counts;
   }, {});
 
+  const persistedYearIds = new Set((schoolYears ?? []).map((year) => year.id));
   const yearsFromDb = (schoolYears ?? []).map((year) => ({ id: year.id, name: year.name }));
   const orphanNames = Array.from(
     new Set(
@@ -182,13 +184,22 @@ export default async function DashboardPage() {
             const currentWeek = estimateCurrentWeek(year.name);
             return (
               <section aria-labelledby={`year-${year.id}`} key={year.id}>
-                <div className="mb-2">
-                  <h2 className="text-lg font-bold" id={`year-${year.id}`}>
-                    {year.name}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Gợi ý tuần hiện tại: {weekLabel(currentWeek)} / {TOTAL_WEEKS}
-                  </p>
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold" id={`year-${year.id}`}>
+                      {year.name}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Gợi ý tuần hiện tại: {weekLabel(currentWeek)} / {TOTAL_WEEKS}
+                    </p>
+                  </div>
+                  {persistedYearIds.has(year.id) ? (
+                    <DeleteSchoolYearButton
+                      classCount={yearClasses.length}
+                      schoolYearId={year.id}
+                      schoolYearName={year.name}
+                    />
+                  ) : null}
                 </div>
 
                 <div className="mb-3">
