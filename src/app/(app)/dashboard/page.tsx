@@ -99,7 +99,7 @@ export default async function DashboardPage() {
       </header>
 
       <section className="mb-6 grid gap-4 sm:grid-cols-3">
-        <a href="#danh-sach-lop-hoc" className="block">
+        <a href="#quan-ly-lop-hoc" className="block">
           <Card className="h-full border-sky-200 bg-gradient-to-br from-sky-100 via-white to-sky-50 shadow-sm transition hover:border-sky-300 hover:shadow-md cursor-pointer" size="sm">
             <CardContent className="flex items-center gap-4 py-5">
               <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-500 text-white">
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
         </Link>
       </section>
 
-      <section className="mb-5 grid gap-2 sm:grid-cols-3">
+      <section id="quan-ly-lop-hoc" className="mb-5 grid scroll-mt-6 gap-2 sm:grid-cols-3">
         <Card size="sm">
           <CardContent>
             <p className="text-xs text-muted-foreground">Năm học hiện tại</p>
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <div id="danh-sach-lop-hoc" className="space-y-8 scroll-mt-6">
+        <div id="danh-sach-lop-hoc" className="space-y-8">
           {years.map((year) => {
             const yearClasses = classesByYear[year.id] ?? classesByYear[year.name] ?? [];
             const currentWeek = estimateCurrentWeek(year.name);
