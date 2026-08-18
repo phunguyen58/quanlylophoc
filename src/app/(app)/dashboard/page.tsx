@@ -100,7 +100,7 @@ export default async function DashboardPage() {
 
       <section className="mb-6 grid gap-4 sm:grid-cols-3">
         <a href="#danh-sach-lop-hoc" className="block">
-          <Card className="h-full border-sky-200 bg-sky-50/50 hover:bg-sky-50 transition cursor-pointer" size="sm">
+          <Card className="h-full border-sky-200 bg-gradient-to-br from-sky-100 via-white to-sky-50 shadow-sm transition hover:border-sky-300 hover:shadow-md cursor-pointer" size="sm">
             <CardContent className="flex items-center gap-4 py-5">
               <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-500 text-white">
                 <UsersRound className="size-6" />
@@ -113,26 +113,26 @@ export default async function DashboardPage() {
           </Card>
         </a>
         <Link href="/quiz-management" className="block">
-          <Card className="h-full border-teal-200 bg-teal-50/50 hover:bg-teal-50 transition cursor-pointer" size="sm">
+          <Card className="h-full border-emerald-200 bg-gradient-to-br from-emerald-100 via-white to-teal-50 shadow-sm transition hover:border-emerald-300 hover:shadow-md cursor-pointer" size="sm">
             <CardContent className="flex items-center gap-4 py-5">
-              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-teal-500 text-white">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-500 text-white">
                 <GraduationCap className="size-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-teal-950">Câu hỏi trắc nghiệm</h2>
+                <h2 className="text-lg font-bold text-emerald-950">Câu hỏi trắc nghiệm</h2>
                 <p className="text-xs text-muted-foreground font-normal text-slate-600">Quản lý ngân hàng câu hỏi trắc nghiệm Tin học</p>
               </div>
             </CardContent>
           </Card>
         </Link>
         <Link href="/learning-materials" className="block">
-          <Card className="h-full border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 transition cursor-pointer" size="sm">
+          <Card className="h-full border-violet-200 bg-gradient-to-br from-violet-100 via-white to-indigo-50 shadow-sm transition hover:border-violet-300 hover:shadow-md cursor-pointer" size="sm">
             <CardContent className="flex items-center gap-4 py-5">
-              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-indigo-500 text-white">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-violet-500 text-white">
                 <Video className="size-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-indigo-950">Học liệu số (Video)</h2>
+                <h2 className="text-lg font-bold text-violet-950">Học liệu số (Video)</h2>
                 <p className="text-xs text-muted-foreground font-normal text-slate-600">Quản lý liên kết video bài giảng theo khối lớp 1–5</p>
               </div>
             </CardContent>
