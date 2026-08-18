@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CreateClassForm } from "./create-class-form";
 import { CreateSchoolYearForm } from "./create-school-year-form";
 import { estimateCurrentWeek, TOTAL_WEEKS, weekLabel } from "@/lib/weeks";
-import { sortBySchoolYearNameDesc } from "@/lib/school-years";
+import { currentSchoolYearName, sortBySchoolYearNameDesc } from "@/lib/school-years";
 import { createClient } from "@/lib/supabase/server";
 import { mapDatabaseError } from "@/lib/supabase/errors";
 
@@ -76,8 +76,15 @@ export default async function DashboardPage() {
       ? mapDatabaseError(yearsError ?? classesError, "Chưa thể tải danh sách. Vui lòng thử lại sau.")
       : null;
 
-  const currentYearName = years[0]?.name;
-  const totalStudents = Object.values(studentCountByClass).reduce((sum, n) => sum + n, 0);
+  const currentYearName = currentSchoolYearName();
+  const currentYear = years.find((year) => year.name === currentYearName);
+  const currentYearClasses = currentYear
+    ? (classesByYear[currentYear.id] ?? classesByYear[currentYear.name] ?? [])
+    : (classes ?? []).filter((classItem) => classItem.school_year === currentYearName);
+  const currentYearStudentCount = currentYearClasses.reduce(
+    (sum, classItem) => sum + (studentCountByClass[classItem.id] ?? 0),
+    0,
+  );
 
   return (
     <>
@@ -134,20 +141,20 @@ export default async function DashboardPage() {
       <section className="mb-5 grid gap-2 sm:grid-cols-3">
         <Card size="sm">
           <CardContent>
-            <p className="text-xs text-muted-foreground">Năm học gần nhất</p>
+            <p className="text-xs text-muted-foreground">Năm học hiện tại</p>
             <p className="mt-1 text-lg font-bold">{currentYearName ?? "—"}</p>
           </CardContent>
         </Card>
         <Card size="sm">
           <CardContent>
             <p className="text-xs text-muted-foreground">Tổng số lớp</p>
-            <p className="mt-1 text-lg font-bold">{classes?.length ?? 0}</p>
+            <p className="mt-1 text-lg font-bold">{currentYearClasses.length}</p>
           </CardContent>
         </Card>
         <Card size="sm">
           <CardContent>
             <p className="text-xs text-muted-foreground">Tổng học sinh</p>
-            <p className="mt-1 text-lg font-bold">{totalStudents}</p>
+            <p className="mt-1 text-lg font-bold">{currentYearStudentCount}</p>
           </CardContent>
         </Card>
       </section>
