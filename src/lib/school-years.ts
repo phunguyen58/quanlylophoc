@@ -21,9 +21,15 @@ export function parseSchoolYearStart(name: string): number | null {
   return Number.isFinite(year) ? year : null;
 }
 
-/** School-year start for Vietnam: before September, current year often began previous calendar year. */
+/** School-year start for Vietnam: August starts a new school year. */
 export function currentSchoolYearStart(now = new Date()): number {
-  return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
+/** Current school-year label, e.g. August 2026 through before August 2027 is 2026-2027. */
+export function currentSchoolYearName(now = new Date()): string {
+  const start = currentSchoolYearStart(now);
+  return `${start}-${start + 1}`;
 }
 
 /** Default when creating: always 2026-2027. */
