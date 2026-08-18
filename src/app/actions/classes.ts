@@ -17,26 +17,33 @@ const classSchema = z.object({
   grade: z.coerce.number().int().min(1).max(12),
 });
 
-export async function createClass(_: CreateClassState, formData: FormData): Promise<CreateClassState> {
+export async function createClass(
+  _: CreateClassState,
+  formData: FormData,
+): Promise<CreateClassState> {
   const parsed = classSchema.safeParse({
     name: formData.get("name"),
     schoolYear: formData.get("schoolYear"),
     grade: formData.get("grade"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Thông tin lớp chưa hợp lệ." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Thông tin lớp chưa hợp lệ.",
+    };
   }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
+  if (!user)
+    return { error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
 
   const profileResult = await ensureTeacherProfile(supabase, user);
   if (profileResult.error) {
     return {
-      error: "Chưa thể thiết lập hồ sơ giáo viên. Vui lòng chạy lại SQL setup trong Supabase.",
+      error:
+        "Chưa thể thiết lập hồ sơ giáo viên. Vui lòng chạy lại SQL setup trong Supabase.",
     };
   }
 
@@ -63,8 +70,9 @@ export async function createClass(_: CreateClassState, formData: FormData): Prom
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/class-management");
 }
 
 export type ClassMutationState = { error?: string; success?: string };
@@ -85,14 +93,17 @@ export async function updateClass(
     grade: formData.get("grade"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Thông tin lớp chưa hợp lệ." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Thông tin lớp chưa hợp lệ.",
+    };
   }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
+  if (!user)
+    return { error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
 
   const { error } = await supabase
     .from("classes")
@@ -111,12 +122,15 @@ export async function updateClass(
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   revalidatePath("/", "layout");
   revalidatePath(`/classes/${parsed.data.classId}`);
   return { success: "Đã cập nhật lớp." };
 }
 
-export async function softDeleteClass(classId: string): Promise<ClassMutationState> {
+export async function softDeleteClass(
+  classId: string,
+): Promise<ClassMutationState> {
   const id = z.string().uuid().safeParse(classId);
   if (!id.success) return { error: "Lớp không hợp lệ." };
 
@@ -124,7 +138,8 @@ export async function softDeleteClass(classId: string): Promise<ClassMutationSta
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
+  if (!user)
+    return { error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
 
   const { data: existing } = await supabase
     .from("classes")
@@ -134,7 +149,8 @@ export async function softDeleteClass(classId: string): Promise<ClassMutationSta
     .is("deleted_at", null)
     .maybeSingle();
 
-  if (!existing) return { error: "Không tìm thấy lớp hoặc bạn không có quyền xóa." };
+  if (!existing)
+    return { error: "Không tìm thấy lớp hoặc bạn không có quyền xóa." };
 
   const { error } = await supabase
     .from("classes")
@@ -146,6 +162,7 @@ export async function softDeleteClass(classId: string): Promise<ClassMutationSta
   if (error) return { error: "Chưa thể xóa lớp. Vui lòng thử lại." };
 
   revalidatePath("/dashboard");
+  revalidatePath("/class-management");
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/class-management");
 }
