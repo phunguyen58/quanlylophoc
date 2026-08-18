@@ -292,6 +292,14 @@ export function AppShell({
               <BarChart3 className="size-4" />
               Báo cáo
             </Link>
+
+            <div className="mt-3 rounded-2xl border border-sky-100 bg-white p-2 shadow-sm">
+              <img
+                alt="Minh hoạ giáo viên quản lý báo cáo học sinh"
+                className="h-auto w-full rounded-xl object-cover"
+                src="/sidebar-report-illustration.svg"
+              />
+            </div>
           </div>
 
           <div className="mt-3 shrink-0 rounded-lg bg-sky-50 p-2.5">
